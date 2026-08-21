@@ -13,10 +13,13 @@ import { config } from "../config.server";
 
 const UPDATED = "21 August 2026";
 
-export const meta = () => [{ title: "Privacy Policy — Evo Labs Product Reviews" }];
+export const meta = ({ data }) => [
+  { title: `Privacy Policy — ${data?.appName || "Product Reviews"}` },
+];
 
 export const loader = async () =>
   json({
+    appName: config.appName,
     legalName: config.legalName,
     legalAddress: config.legalAddress,
     supportEmail: config.supportEmail,
@@ -25,7 +28,7 @@ export const loader = async () =>
   });
 
 export default function Privacy() {
-  const { legalName, legalAddress, supportEmail, privacyEmail, hostingProvider } =
+  const { appName, legalName, legalAddress, supportEmail, privacyEmail, hostingProvider } =
     useLoaderData();
 
   return (
@@ -38,9 +41,9 @@ export default function Privacy() {
       <p style={{ color: "#656d76" }}>Last updated {UPDATED}</p>
 
       <p>
-        This policy explains what Evo Labs Product Reviews (&ldquo;the app&rdquo;)
-        collects when a merchant installs it on a Shopify store, why, and how long
-        it is kept. The app is operated by <b>{legalName}</b>, {legalAddress}.
+        This policy explains what {appName} (&ldquo;the app&rdquo;) collects when a
+        merchant installs it on a Shopify store, why, and how long it is kept.
+        The app is operated by <b>{legalName}</b>, {legalAddress}.
       </p>
 
       <h2>What we collect</h2>

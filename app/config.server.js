@@ -68,6 +68,12 @@ function appHost() {
 
 export const config = {
   isProduction,
+
+  // The app's public name, shown on the landing page and in the title
+  // of every public page. Overridable so the same codebase can be
+  // deployed under a different brand without a find-and-replace.
+  appName: process.env.APP_NAME || "DiziGroww Customer Review App",
+
   appUrl: String(process.env.SHOPIFY_APP_URL || "").replace(/\/$/, ""),
   appHost: appHost(),
   appEmbedUuid: process.env.SHOPIFY_APP_EMBED_UUID || "",

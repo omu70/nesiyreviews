@@ -6,9 +6,12 @@ import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { config } from "../config.server";
 
-export const meta = () => [{ title: "Support — Evo Labs Product Reviews" }];
+export const meta = ({ data }) => [
+  { title: `Support — ${data?.appName || "Product Reviews"}` },
+];
 
-export const loader = async () => json({ supportEmail: config.supportEmail });
+export const loader = async () =>
+  json({ supportEmail: config.supportEmail, appName: config.appName });
 
 export default function Support() {
   const { supportEmail } = useLoaderData();
