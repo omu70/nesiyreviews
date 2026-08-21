@@ -2,27 +2,22 @@
 # Shopify app configuration
 # Docs: https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration
 #
-# BEFORE FIRST DEPLOY:
-#   1. Replace client_id with the Client ID from your Partner Dashboard
-#      (Apps → your app → Overview → Client credentials), or just run
-#      `npm run config:link` and the CLI writes it for you.
-#   2. Replace every REPLACE_WITH_YOUR_DOMAIN with your real host.
-#      It must NOT contain the string "shopify" — that fails an
-#      automated pre-submission check.
-#   3. Set dev_store_url to your development store.
+# Filled in for the DiziGroww deployment on Vercel.
+# Push changes with:  npx shopify app deploy
 ####################################################################
 
-client_id       = "REPLACE_WITH_YOUR_CLIENT_ID"
-name            = "Evo Labs Product Reviews"
-handle          = "evo-product-reviews"
-application_url = "https://REPLACE_WITH_YOUR_DOMAIN"
+client_id       = "2e61b4e825231857dfcda7f78b568be4"
+name            = "DiziGroww Customer Review App"
+handle          = "dizigroww-reviews"
+application_url = "https://nesiyreviews.vercel.app"
 embedded        = true
 
 [access_scopes]
 # Comma-separated string, not an array.
-# read_products  — resolve product titles/handles in the admin UI
+# read_products  — resolve product titles/handles in the admin UI, and
+#                  identify the product behind products/update + delete
 # write_products — write the reviews.rating / reviews.rating_count metafields
-#                  so themes and Shop can read aggregate ratings
+#                  so themes and the Shop app can read aggregate ratings
 scopes = "read_products,write_products"
 
 # Must be false (or omitted) to get Shopify managed installation +
@@ -31,9 +26,9 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://REPLACE_WITH_YOUR_DOMAIN/auth/callback",
-  "https://REPLACE_WITH_YOUR_DOMAIN/auth/shopify/callback",
-  "https://REPLACE_WITH_YOUR_DOMAIN/api/auth/callback"
+  "https://nesiyreviews.vercel.app/auth/callback",
+  "https://nesiyreviews.vercel.app/auth/shopify/callback",
+  "https://nesiyreviews.vercel.app/api/auth/callback"
 ]
 
 [webhooks]
@@ -78,7 +73,7 @@ uri               = "/webhooks/compliance"
 # `subpath` max 30 chars.
 # ------------------------------------------------------------------
 [app_proxy]
-url     = "https://REPLACE_WITH_YOUR_DOMAIN/apps/proxy"
+url     = "https://nesiyreviews.vercel.app/apps/proxy"
 subpath = "evo-reviews"
 prefix  = "apps"
 
@@ -86,6 +81,10 @@ prefix  = "apps"
 embedded = false
 
 [build]
-include_config_on_deploy         = true
-automatically_update_urls_on_dev = true
-dev_store_url                    = "REPLACE_WITH_YOUR_DEV_STORE.myshopify.com"
+include_config_on_deploy = true
+
+# Deliberately false. With this true, running `shopify app dev` would
+# overwrite application_url with a temporary tunnel address and push
+# that to the live app — breaking every installed store until the next
+# deploy. The production URL stays put.
+automatically_update_urls_on_dev = false
