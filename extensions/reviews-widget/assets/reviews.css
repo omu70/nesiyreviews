@@ -21,7 +21,7 @@
   --evo-surface: #ffffff;
   --evo-surface-2: #f9fafb;
   --evo-radius: 12px;
-  --evo-card-badge-justify: inherit;
+  --evo-card-badge-justify: center;
 }
 
 .evo-rw__sr {

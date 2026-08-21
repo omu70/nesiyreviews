@@ -277,10 +277,15 @@ alter table public.shop_settings
   add column if not exists require_title boolean not null default false,
   add column if not exists require_email boolean not null default false,
   add column if not exists max_photos integer not null default 5,
+  -- Where the rating sits on the product page when the app places it
+  -- automatically. A merchant who adds the Product rating badge block
+  -- from the theme editor controls placement directly and this is
+  -- ignored for them.
+  add column if not exists badge_placement text not null default 'price',
   -- Product-card badge appearance.
   add column if not exists badge_show_verified_icon boolean not null default true,
   add column if not exists badge_count_format text not null default 'compact',
-  add column if not exists badge_align text not null default 'inherit',
+  add column if not exists badge_align text not null default 'center',
   -- Product / AggregateRating structured data. Off if the theme
   -- already emits its own rating markup.
   add column if not exists enable_rich_snippets boolean not null default true,
@@ -299,6 +304,11 @@ alter table public.shop_settings drop constraint if exists shop_settings_badge_c
 alter table public.shop_settings
   add constraint shop_settings_badge_count_format_check
   check (badge_count_format in ('compact', 'full'));
+
+alter table public.shop_settings drop constraint if exists shop_settings_badge_placement_check;
+alter table public.shop_settings
+  add constraint shop_settings_badge_placement_check
+  check (badge_placement in ('title', 'price'));
 
 alter table public.shop_settings drop constraint if exists shop_settings_badge_align_check;
 alter table public.shop_settings

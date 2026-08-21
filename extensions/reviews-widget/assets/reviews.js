@@ -52,6 +52,23 @@
     return settings[name] == null || settings[name] === "" ? dflt : String(settings[name]);
   }
 
+  var TITLE_TARGETS =
+    ".product__title, .product-single__title, [data-product-title], h1.product-title, h1";
+
+  // Ordered most specific first: `.price` alone is common enough to
+  // appear inside a related-products card, so anything that names the
+  // product context gets a chance to match before it does.
+  var PRICE_TARGETS = [
+    ".product__info-container .price",
+    ".product-single__price",
+    "[data-product-price]",
+    ".product__price",
+    ".price__container",
+    ".price--large",
+    ".product-price",
+    ".price",
+  ].join(", ");
+
   /**
    * Read the merchant's configuration into `opts`.
    *
@@ -79,7 +96,8 @@
       maxPhotos: Math.max(1, Math.min(10, num("max_photos", 5))),
       pagination: str("pagination_style", "load_more"),
       countFormat: str("badge_count_format", "compact"),
-      badgeAlign: str("badge_align", "inherit"),
+      badgeAlign: str("badge_align", "center"),
+      badgePlacement: str("badge_placement", "price"),
       heading: str("heading_text", "Customer Reviews"),
       emptyText: str("empty_text", "No reviews yet. Be the first to share your experience."),
     };
@@ -88,9 +106,12 @@
     productHandle = cfg.productHandle || null;
     productId = cfg.productId || null;
 
+    // Where the automatically placed rating goes. A selector typed into
+    // the app embed always wins — a merchant who went to that trouble
+    // knows their theme better than a default list does.
     badgeTarget =
       cfg.badgeTarget ||
-      ".product__title, .product-single__title, [data-product-title], h1.product-title, h1";
+      (opts.badgePlacement === "price" ? PRICE_TARGETS : TITLE_TARGETS);
     gridTarget =
       cfg.gridTarget ||
       ".product__description, .product-single__description, [data-product-description], main";

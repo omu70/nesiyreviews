@@ -77,9 +77,10 @@ const DEFAULT_SETTINGS = {
   require_title: false,
   require_email: false,
   max_photos: 5,
+  badge_placement: "price",
   badge_show_verified_icon: true,
   badge_count_format: "compact",
-  badge_align: "inherit",
+  badge_align: "center",
   enable_rich_snippets: true,
   include_store_reviews_on_product: false,
 };

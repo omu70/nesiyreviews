@@ -53,6 +53,7 @@ const BOOLEANS = [
 
 const ENUMS = {
   layout: ["grid", "list", "carousel"],
+  badge_placement: ["title", "price"],
   pagination_style: ["load_more", "pagination"],
   badge_count_format: ["compact", "full"],
   badge_align: ["inherit", "start", "center"],
@@ -79,7 +80,8 @@ const DEFAULTS = {
   layout: "grid",
   pagination_style: "load_more",
   badge_count_format: "compact",
-  badge_align: "inherit",
+  badge_align: "center",
+  badge_placement: "price",
   reviews_per_page: 10,
   max_photos: 5,
   heading_text: "Customer Reviews",
@@ -443,10 +445,23 @@ export default function Settings() {
                   appear exactly where you put them.
                 </Text>
                 <Checkbox
-                  label="Star rating under the product title"
+                  label="Star rating on the product page"
                   checked={form.show_badge}
                   onChange={set("show_badge")}
                 />
+                <Box paddingInlineStart="600" minWidth="260px">
+                  <Select
+                    label="Place it under"
+                    options={[
+                      { label: "The product title", value: "title" },
+                      { label: "The price", value: "price" },
+                    ]}
+                    value={form.badge_placement}
+                    onChange={set("badge_placement")}
+                    disabled={!form.show_badge}
+                    helpText="Only affects automatic placement. If you add the Product rating badge block in the theme editor, it appears exactly where you put it."
+                  />
+                </Box>
                 <Checkbox
                   label="Full review section on product pages"
                   checked={form.show_grid}

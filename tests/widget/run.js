@@ -89,8 +89,8 @@ async function main() {
     check("product badge shows the average to one decimal", /\b4\.7\b/.test(badge), badge);
     check("product badge shows a compact review count", /\(1\.3K Reviews\)/.test(badge), badge);
     check(
-      "product badge is placed under the product title",
-      (await page.locator(".pdp__info > *").nth(1).getAttribute("data-evo-star-badge")) !== null
+      "product badge is placed under the price by default",
+      (await page.locator(".pdp__info > *").nth(2).getAttribute("data-evo-star-badge")) !== null
     );
 
     // The count formatter, exercised through what a shopper sees.
@@ -448,6 +448,69 @@ async function main() {
     },
     MOBILE_CONTEXT
   );
+
+  // -----------------------------------------------------------
+  section("Badge placement");
+  // -----------------------------------------------------------
+  {
+    const priced = createServer({ settings: { badge_placement: "price" } });
+    const priceBase = await listen(priced);
+    await withPage(browser, DESKTOP, async (page) => {
+      await page.goto(`${priceBase}/`, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector("[data-evo-star-badge] .evo-badge__group");
+
+      const order = await page.evaluate(() =>
+        Array.from(document.querySelectorAll(".pdp__info > *")).map(
+          (el) => el.getAttribute("data-evo-star-badge") !== null ? "BADGE" : el.className || el.tagName
+        )
+      );
+      check(
+        "placement=price puts the badge directly after the price",
+        order.indexOf("BADGE") === order.indexOf("price") + 1,
+        order.join(" → ")
+      );
+      check(
+        "and not after the title",
+        order.indexOf("BADGE") !== order.indexOf("product__title") + 1,
+        order.join(" → ")
+      );
+      check(
+        "the badge still reads correctly there",
+        /4\.7/.test(await page.locator("[data-evo-star-badge]").innerText())
+      );
+    });
+    priced.server.close();
+  }
+
+  {
+    const titled = createServer({ settings: { badge_placement: "title" } });
+    const titleBase = await listen(titled);
+    await withPage(browser, DESKTOP, async (page) => {
+      await page.goto(`${titleBase}/`, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector("[data-evo-star-badge] .evo-badge__group");
+      const order = await page.evaluate(() =>
+        Array.from(document.querySelectorAll(".pdp__info > *")).map(
+          (el) => el.getAttribute("data-evo-star-badge") !== null ? "BADGE" : el.className || el.tagName
+        )
+      );
+      check(
+        "placement=title still puts it directly after the title",
+        order.indexOf("BADGE") === order.indexOf("product__title") + 1,
+        order.join(" → ")
+      );
+    });
+    titled.server.close();
+  }
+
+  await withPage(browser, DESKTOP, async (page) => {
+    await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".evo-card-badge");
+    const justify = await page
+      .locator(".evo-card-badge")
+      .first()
+      .evaluate((el) => getComputedStyle(el).justifyContent);
+    check("product-card badges are centred by default", justify === "center", justify);
+  });
 
   // -----------------------------------------------------------
   section("Merchant settings actually change the storefront");
