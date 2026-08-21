@@ -130,6 +130,23 @@ const PRODUCT_PAGE = (overrides = {}) => `
     .join("")}
 </ul>
 
+<!--
+  A card shaped like a real jewellery theme: the image is a product link
+  of its own, the price sits ABOVE the title, and the title is a second
+  product link. Walking up from the two links lands on different
+  ancestors, which is how a card ends up with two badges.
+-->
+<ul class="tiles" id="awkward-grid">
+  <li class="acard">
+    <div class="acard__media"><a href="/products/card-a"><img src="/img/card-a.png" alt="" width="60" height="60"></a></div>
+    <div class="acard__body">
+      <span class="price acard__price">Rs. 749.00 <s>Rs. 1,498.00</s></span>
+      <h3 class="acard__ttl"><a href="/products/card-a">Rose Gold Pendant with AAA+ Stones</a></h3>
+      <button class="acard__atc">Add to cart</button>
+    </div>
+  </li>
+</ul>
+
 <script>
   window.__EVO_REVIEWS__ = {
     proxyBase: "/apps/evo-reviews",

@@ -57,6 +57,7 @@ const ENUMS = {
   pagination_style: ["load_more", "pagination"],
   badge_count_format: ["compact", "full"],
   badge_align: ["inherit", "start", "center"],
+  card_badge_position: ["above_price", "beside_price", "below_title"],
 };
 
 const DISPLAY_PRESETS = ["5", "10", "20", "50"];
@@ -81,6 +82,7 @@ const DEFAULTS = {
   pagination_style: "load_more",
   badge_count_format: "compact",
   badge_align: "center",
+  card_badge_position: "above_price",
   badge_placement: "price",
   reviews_per_page: 10,
   max_photos: 5,
@@ -473,6 +475,19 @@ export default function Settings() {
                   checked={form.show_card_badges}
                   onChange={set("show_card_badges")}
                 />
+                <Box paddingInlineStart="600" minWidth="260px">
+                  <Select
+                    label="Position on the card"
+                    options={[
+                      { label: "Under the image, above the price", value: "above_price" },
+                      { label: "Next to the price", value: "beside_price" },
+                      { label: "Under the product title", value: "below_title" },
+                    ]}
+                    value={form.card_badge_position}
+                    onChange={set("card_badge_position")}
+                    disabled={!form.show_card_badges}
+                  />
+                </Box>
               </BlockStack>
             </Card>
 

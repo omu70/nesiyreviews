@@ -137,6 +137,66 @@ async function main() {
   });
 
   // -----------------------------------------------------------
+  section("Product cards with an image link and a title link");
+  // -----------------------------------------------------------
+  await withPage(browser, DESKTOP, async (page) => {
+    await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#awkward-grid .evo-card-badge");
+    await page.waitForTimeout(400);
+
+    const badges = await page.locator("#awkward-grid .evo-card-badge").count();
+    check("exactly one badge per card, not one per product link", badges === 1, `${badges} badges`);
+
+    const order = await page.evaluate(() =>
+      Array.from(document.querySelectorAll(".acard__body > *")).map((el) =>
+        el.getAttribute("data-evo-card-badge") !== null ? "BADGE" : el.className || el.tagName
+      )
+    );
+    check(
+      "the badge sits directly above the price by default",
+      order.indexOf("BADGE") === order.indexOf("price acard__price") - 1,
+      order.join(" → ")
+    );
+    check(
+      "it is never stranded below Add to cart",
+      order.indexOf("BADGE") < order.indexOf("acard__atc"),
+      order.join(" → ")
+    );
+    check(
+      "and is not anchored to the image wrapper",
+      (await page.locator(".acard__media .evo-card-badge").count()) === 0
+    );
+  });
+
+  for (const [position, expectation] of [
+    ["beside_price", "directly after the price"],
+    ["below_title", "directly after the title"],
+  ]) {
+    const server = createServer({ settings: { card_badge_position: position } });
+    const posBase = await listen(server);
+    await withPage(browser, DESKTOP, async (page) => {
+      await page.goto(`${posBase}/`, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector("#awkward-grid .evo-card-badge");
+      const order = await page.evaluate(() =>
+        Array.from(document.querySelectorAll(".acard__body > *")).map((el) =>
+          el.getAttribute("data-evo-card-badge") !== null ? "BADGE" : el.className || el.tagName
+        )
+      );
+      const anchor = position === "beside_price" ? "price acard__price" : "acard__ttl";
+      check(
+        `card_badge_position=${position} puts it ${expectation}`,
+        order.indexOf("BADGE") === order.indexOf(anchor) + 1,
+        order.join(" → ")
+      );
+      check(
+        `${position} still yields exactly one badge`,
+        (await page.locator("#awkward-grid .evo-card-badge").count()) === 1
+      );
+    });
+    server.server.close();
+  }
+
+  // -----------------------------------------------------------
   section("Desktop — review list, limit and load more");
   // -----------------------------------------------------------
   await withPage(browser, DESKTOP, async (page) => {

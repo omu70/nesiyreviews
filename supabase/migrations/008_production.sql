@@ -286,6 +286,8 @@ alter table public.shop_settings
   add column if not exists badge_show_verified_icon boolean not null default true,
   add column if not exists badge_count_format text not null default 'compact',
   add column if not exists badge_align text not null default 'center',
+  -- Where the badge sits inside a product card.
+  add column if not exists card_badge_position text not null default 'above_price',
   -- Product / AggregateRating structured data. Off if the theme
   -- already emits its own rating markup.
   add column if not exists enable_rich_snippets boolean not null default true,
@@ -314,6 +316,11 @@ alter table public.shop_settings drop constraint if exists shop_settings_badge_a
 alter table public.shop_settings
   add constraint shop_settings_badge_align_check
   check (badge_align in ('inherit', 'start', 'center'));
+
+alter table public.shop_settings drop constraint if exists shop_settings_card_badge_position_check;
+alter table public.shop_settings
+  add constraint shop_settings_card_badge_position_check
+  check (card_badge_position in ('above_price', 'beside_price', 'below_title'));
 
 alter table public.shop_settings drop constraint if exists shop_settings_max_photos_check;
 alter table public.shop_settings

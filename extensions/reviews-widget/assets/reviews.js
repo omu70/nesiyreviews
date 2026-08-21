@@ -98,6 +98,7 @@
       countFormat: str("badge_count_format", "compact"),
       badgeAlign: str("badge_align", "center"),
       badgePlacement: str("badge_placement", "price"),
+      cardBadgePosition: str("card_badge_position", "above_price"),
       heading: str("heading_text", "Customer Reviews"),
       emptyText: str("empty_text", "No reviews yet. Be the first to share your experience."),
     };
@@ -1551,8 +1552,12 @@
     var byClass = card.querySelector(TITLE_SELECTORS);
     if (byClass && (byClass.textContent || "").trim()) return byClass;
 
+    // The last resort is a product link that carries text. Skip any that
+    // wraps an image — that is the photo link, and anchoring to it puts
+    // the rating above the price instead of under the title.
     var links = card.querySelectorAll('a[href*="/products/"]');
     for (var i = 0; i < links.length; i++) {
+      if (links[i].querySelector("img")) continue;
       if ((links[i].textContent || "").trim()) return links[i];
     }
     return null;
@@ -1581,6 +1586,67 @@
     );
   }
 
+  // The price inside a product card. First match wins, and a compare-at
+  // price is usually a child of the same element, so this lands on the
+  // price block rather than on one of the two amounts.
+  var CARD_PRICE_TARGETS = [
+    ".price",
+    "[data-price]",
+    "[class*='price__regular']",
+    "[class*='product-price']",
+    "[class*='card__price']",
+    "[class*='price']",
+  ].join(", ");
+
+  function firstIn(card, selectors) {
+    try {
+      return card.querySelector(selectors);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Put the badge where the merchant asked for it.
+   *
+   * Both sensible positions on a card are anchored on the price: "under
+   * the image" is the slot immediately before it, "next to the price" is
+   * immediately after. Anchoring on the price rather than the image is
+   * what makes this survive themes that wrap the photo in three nested
+   * divs.
+   *
+   * Falls back to the title, then gives up — a rating stranded under the
+   * Add to cart button is worse than no rating at all.
+   */
+  function placeCardBadge(card, badge) {
+    var where = opts.cardBadgePosition;
+
+    if (where === "above_price" || where === "beside_price") {
+      var price = firstIn(card, CARD_PRICE_TARGETS);
+      if (price && price.parentNode) {
+        if (where === "beside_price") {
+          badge.className += " evo-card-badge--inline";
+          price.parentNode.insertBefore(badge, price.nextSibling);
+        } else {
+          price.parentNode.insertBefore(badge, price);
+        }
+        return true;
+      }
+    }
+
+    var title = findCardTitle(card);
+    if (title && title.parentNode) {
+      // Directly after the title, never after the title's PARENT. The
+      // hop up was there to escape an inline link, but on a theme whose
+      // title is a link inside the card body it selected the whole body
+      // — which is how the rating ended up below Add to cart.
+      title.parentNode.insertBefore(badge, title.nextSibling);
+      return true;
+    }
+
+    return false;
+  }
+
   var cardBadgeRunning = false;
 
   function injectCardBadges() {
@@ -1604,6 +1670,25 @@
       (byHandle[handle] = byHandle[handle] || []).push(card);
     }
 
+    // A card usually links to its product twice — once on the image,
+    // once on the title. Walking up from each lands on two different
+    // ancestors: the image link stops at a small media wrapper (it has
+    // an image and one handle, so it looks like a card), the title link
+    // climbs past the text column to the real card. Both qualify, and
+    // the store gets two badges.
+    //
+    // Keep only candidates that no other candidate contains — the real
+    // card, not the media wrapper inside it.
+    Object.keys(byHandle).forEach(function (handle) {
+      var list = byHandle[handle];
+      byHandle[handle] = list.filter(function (card) {
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] !== card && list[i].contains(card)) return false;
+        }
+        return true;
+      });
+    });
+
     var wanted = Object.keys(byHandle);
     if (!wanted.length) return;
 
@@ -1619,17 +1704,16 @@
           if (!s || !s.count) return;
 
           byHandle[handle].forEach(function (card) {
+            // Re-checked here as well as at collection time: the fetch
+            // in between is long enough for a theme's own script to have
+            // re-rendered the grid underneath us.
             if (card.querySelector("[data-evo-card-badge]")) return;
 
-            var title = findCardTitle(card);
-            if (!title || !title.parentNode) return;
-
-            var anchor = title.tagName === "A" ? title.parentElement || title : title;
             var badge = document.createElement("div");
             badge.className = "evo-card-badge";
             badge.setAttribute("data-evo-card-badge", "");
             badge.innerHTML = cardBadgeHTML(s.average, s.count);
-            anchor.parentNode.insertBefore(badge, anchor.nextSibling);
+            placeCardBadge(card, badge);
           });
         });
       })

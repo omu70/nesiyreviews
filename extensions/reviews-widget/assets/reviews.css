@@ -1299,3 +1299,11 @@ html.evo-lb-open body {
   font-size: 0.875rem;
   color: var(--evo-muted);
 }
+
+/* "Next to the price" puts the badge on the price's own line, so it
+   reads as part of that row rather than as a block underneath it. */
+.evo-card-badge--inline {
+  display: inline-flex;
+  margin: 0 0 0 8px;
+  vertical-align: middle;
+}

@@ -81,6 +81,7 @@ const DEFAULT_SETTINGS = {
   badge_show_verified_icon: true,
   badge_count_format: "compact",
   badge_align: "center",
+  card_badge_position: "above_price",
   enable_rich_snippets: true,
   include_store_reviews_on_product: false,
 };
