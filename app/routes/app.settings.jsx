@@ -181,12 +181,16 @@ function BadgePreview({ starColor, showVerified, format }) {
       </svg>
       <Text as="span" fontWeight="bold">4.7</Text>
       {showVerified ? (
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
+          <polygon fill="#005eff" points="9,16 7.1,16.9 5.8,15.2 3.7,15.1 3.4,13 1.5,12 2.2,9.9 1.1,8.2 2.6,6.7 2.4,4.6 4.5,4 5.3,2 7.4,2.4 9,1.1 10.7,2.4 12.7,2 13.6,4 15.6,4.6 15.5,6.7 17,8.2 15.9,9.9 16.5,12 14.7,13 14.3,15.1 12.2,15.2 10.9,16.9" />
           <path
-            d="M12 1.5l2.6 2.1 3.3-.5.7 3.3 2.9 1.7-1.4 3.05 1.4 3.05-2.9 1.7-.7 3.3-3.3-.5L12 22.5l-2.6-2.1-3.3.5-.7-3.3L2.5 15.9l1.4-3.05L2.5 9.8l2.9-1.7.7-3.3 3.3.5L12 1.5z"
-            fill="#1877F2"
+            d="M5.7 9.1l2.2 2.2 4.4-4.6"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
-          <path d="M9.55 14.7l-2.3-2.3 1.4-1.4 1 1 4.4-4.4 1.4 1.4-5.9 5.7z" fill="#fff" />
         </svg>
       ) : null}
       <Text as="span" tone="subdued">{`(${count} Reviews)`}</Text>

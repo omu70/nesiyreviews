@@ -78,3 +78,4 @@ node_modules
 /v3_carousel_4.png
 /v3_carousel_5.png
 /.DS_Store
+.env*

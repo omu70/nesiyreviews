@@ -1,0 +1,38 @@
+Production-ready pass: security fixes, real pagination, image pipeline, tests
+
+Audit and completion pass over the existing Remix + Supabase + Polaris app.
+The architecture is unchanged — managed installation, token exchange, sessions
+in Postgres and the signed App Proxy were already right and were kept.
+
+Security
+- Drop the RLS policy that let any holder of the anon key read every approved
+  review in the database, across every shop, and the storage policy that let
+  them write into the review-image bucket
+- Drop shops.store_key and the entire retired snippet distribution path
+- Cap request bodies, rate-limit signed-URL minting, and keep database error
+  text out of every storefront response
+
+Correctness
+- products/update matched a column holding a handle, not an id, so renaming a
+  product silently detached its reviews; reviews now carry the numeric id
+- The aggregate trigger left a stale rating on the old handle after a rename
+- Store-wide reviews were mixed into every product page, so the product card
+  and the product page disagreed on the count; now a setting, off by default
+- The Liquid and JavaScript review-count formatters disagreed, producing a
+  visible flicker on every page load
+
+Features
+- Client-side image resizing with separate thumbnails, an accessible
+  swipeable lightbox, and a graceful fallback for photos that fail to load
+- Display limit enforced in Postgres with range pagination, plus load-more or
+  numbered pages
+- Rating distribution, storefront filters, sort, and a complete submission
+  form with title and email
+- Product rating badge, product reviews and store reviews theme app blocks
+- reviews.rating / reviews.rating_count metafield sync
+- products/delete webhook, and delivery de-duplication on every handler
+
+Verification
+- 11 unit tests, 77 browser checks against the real widget in Chromium
+  (desktop and mobile), 27 database checks applying every migration twice
+- ESLint config added; lint and production build both clean

@@ -1,0 +1,3 @@
+product_handle,rating,author,title,content,author_location,author_country,commented_at,photo_url_1,photo_url_2,reply,publish,feature
+rose-gold-water-drop-brass-pendant,5,EXAMPLE ROW — delete me,Short headline here,"The full review text goes here. Quotes let you use commas, and "" escapes a literal quote mark.",Mumbai,IN,2026-08-14,,,"Optional public reply from the store",yes,no
+infinite-love-brass-pendant,4,EXAMPLE ROW — delete me,,"A review with no headline is fine — content alone is enough. Leave commented_at blank to use today's date.",Delhi,IN,,https://cdn.shopify.com/example-photo.jpg,,,yes,no
