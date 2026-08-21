@@ -6,7 +6,6 @@
 // performs the token exchange on first load, which is why no OAuth
 // callback code is needed anywhere in this repo.
 // =============================================================
-import { redirect } from "@remix-run/node";
 import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
@@ -14,35 +13,49 @@ import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
 import { db } from "../db.server";
+import { log } from "../utils/log.server";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }) => {
-  // Shopify always loads embedded apps with ?shop= and ?host=. Someone
-  // arriving without them (a bookmarked URL, a reviewer poking around)
-  // would otherwise get a bare 410 "Handling response" page, which reads
-  // as a broken app under App Store req 2.1.2. Send them to the login
-  // form instead.
-  const url = new URL(request.url);
-  if (!url.searchParams.get("shop") && !url.searchParams.get("host") &&
-      !url.searchParams.get("id_token") && !url.searchParams.get("embedded")) {
-    throw redirect("/auth/login");
-  }
-
+  // authenticate.admin() is the only thing that decides here.
+  //
+  // There used to be a hand-rolled guard above this line that redirected
+  // to /auth/login when the URL carried no shop, host, id_token or
+  // embedded parameter. It looked reasonable and it broke the embedded
+  // app: Shopify puts those parameters in the URL only on the *first*
+  // load. Once App Bridge takes over, Remix's client-side data requests
+  // arrive with the session token in the Authorization header and a
+  // bare URL — so the guard fired on every navigation and rendered the
+  // shop-domain login form inside Shopify's own iframe.
+  //
+  // authenticate.admin() reads both the header and the URL, performs the
+  // token exchange on first load, and redirects correctly when there is
+  // genuinely no session. It does not need help.
   const { session } = await authenticate.admin(request);
 
   // Make sure the shop + settings rows exist. afterAuth does this on
   // install, but a merchant who installed before a migration ran would
   // otherwise hit a null settings row on every page.
-  await db
-    .from("shops")
-    .upsert(
+  //
+  // Failures are logged rather than swallowed: if the tables are missing
+  // entirely, this is where it shows up first, and a silent upsert makes
+  // that look like an app bug instead of a setup step.
+  const [shopRes, settingsRes] = await Promise.all([
+    db.from("shops").upsert(
       { shop_domain: session.shop, is_active: true, install_source: "app" },
       { onConflict: "shop_domain", ignoreDuplicates: true }
-    );
-  await db
-    .from("shop_settings")
-    .upsert({ shop_domain: session.shop }, { onConflict: "shop_domain", ignoreDuplicates: true });
+    ),
+    db.from("shop_settings").upsert(
+      { shop_domain: session.shop },
+      { onConflict: "shop_domain", ignoreDuplicates: true }
+    ),
+  ]);
+
+  if (shopRes.error) log.error("app.shop_upsert_failed", { shop: session.shop, error: shopRes.error });
+  if (settingsRes.error) {
+    log.error("app.settings_upsert_failed", { shop: session.shop, error: settingsRes.error });
+  }
 
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
 };
