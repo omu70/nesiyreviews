@@ -1,0 +1,148 @@
+{% comment %}
+  ============================================================
+  App block — Product rating badge
+  File: /extensions/reviews-widget/blocks/product-badge.liquid
+
+      ⭐ 4.7   🔵   (1.3K Reviews)
+
+  Drop this under the product title from the theme editor when you
+  want the rating in a specific place rather than wherever the app
+  embed guesses.
+
+  It renders from the product's own `reviews.rating` and
+  `reviews.rating_count` metafields, which the app keeps in sync. That
+  means the rating is in the HTML Shopify serves — it paints with the
+  page, costs nothing, and does not move the title when JavaScript
+  catches up. reviews.js refreshes it afterwards in case a review was
+  approved in the last few seconds.
+  ============================================================
+{% endcomment %}
+
+{%- liquid
+  assign rating_mf = product.metafields.reviews.rating
+  assign count_mf  = product.metafields.reviews.rating_count
+
+  assign rc = 0
+  if count_mf != blank
+    assign rc = count_mf.value | plus: 0
+  endif
+
+  assign avg = 0
+  if rating_mf != blank and rating_mf.value != blank
+    assign avg = rating_mf.value.rating | times: 10 | round | divided_by: 10.0
+  endif
+
+  comment
+    Compact review counts, matching reviews.js exactly:
+      128 -> 128,  1050 -> 1.1K,  9999 -> 10K,  12400 -> 12.4K,
+      850000 -> 850K,  1200000 -> 1.2M
+
+    Liquid's divided_by truncates when both operands are integers,
+    which is what gives one decimal place without a rounding filter.
+    Adding half a unit first turns that truncation into rounding — the
+    JavaScript rounds, and a badge that says 1K in the HTML and 1.1K a
+    moment later is a visible flicker on every page load.
+    tests/unit/count-format.test.js holds the two implementations to
+    the same answers.
+  endcomment
+  assign count_str = rc | append: ''
+
+  if rc >= 1000 and rc < 999950
+    assign tenths = rc | plus: 50 | divided_by: 100
+    assign whole  = tenths | divided_by: 10
+    assign frac   = tenths | modulo: 10
+    if frac == 0 or whole >= 100
+      assign rounded   = rc | plus: 500 | divided_by: 1000
+      assign count_str = rounded | append: 'K'
+    else
+      assign count_str = whole | append: '.' | append: frac | append: 'K'
+    endif
+
+  elsif rc >= 999950 and rc < 999950000
+    assign tenths = rc | plus: 50000 | divided_by: 100000
+    assign whole  = tenths | divided_by: 10
+    assign frac   = tenths | modulo: 10
+    if frac == 0 or whole >= 100
+      assign rounded   = rc | plus: 500000 | divided_by: 1000000
+      assign count_str = rounded | append: 'M'
+    else
+      assign count_str = whole | append: '.' | append: frac | append: 'M'
+    endif
+
+  elsif rc >= 999950000
+    assign tenths = rc | plus: 50000000 | divided_by: 100000000
+    assign whole  = tenths | divided_by: 10
+    assign frac   = tenths | modulo: 10
+    if frac == 0 or whole >= 100
+      assign rounded   = rc | plus: 500000000 | divided_by: 1000000000
+      assign count_str = rounded | append: 'B'
+    else
+      assign count_str = whole | append: '.' | append: frac | append: 'B'
+    endif
+  endif
+
+  assign noun = 'Reviews'
+  if rc == 1
+    assign noun = 'Review'
+  endif
+-%}
+
+<link rel="stylesheet" href="{{ 'reviews.css' | asset_url }}" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="{{ 'reviews.css' | asset_url }}"></noscript>
+
+<div
+  class="evo-badge{% if rc == 0 %} evo-badge--empty{% endif %}"
+  data-evo-badge-block
+  {% if rc > 0 %}data-evo-prepainted="1"{% endif %}
+  style="text-align: {{ block.settings.alignment | default: 'left' }};"
+  {{ block.shopify_attributes }}
+>
+  {%- if rc > 0 -%}
+    <span class="evo-badge__group" role="img"
+          aria-label="Rated {{ avg }} out of 5 from {{ rc }} reviews">
+      <span class="evo-badge__star">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 2.5l2.95 6.4 7.05.7-5.3 4.85 1.55 6.95L12 17.9l-6.25 3.5L7.3 14.45 2 9.6l7.05-.7L12 2.5z" fill="var(--evo-star, #FFC107)"/></svg>
+      </span>
+      <span class="evo-badge__avg">{{ avg }}</span>
+      {%- if block.settings.show_verified_icon -%}
+        <span class="evo-badge__verified">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M12 1.5l2.6 2.1 3.3-.5.7 3.3 2.9 1.7-1.4 3.05 1.4 3.05-2.9 1.7-.7 3.3-3.3-.5L12 22.5l-2.6-2.1-3.3.5-.7-3.3L2.5 15.9l1.4-3.05L2.5 9.8l2.9-1.7.7-3.3 3.3.5L12 1.5z" fill="#1877F2"/><path d="M9.55 14.7l-2.3-2.3 1.4-1.4 1 1 4.4-4.4 1.4 1.4-5.9 5.7z" fill="#fff"/></svg>
+        </span>
+      {%- endif -%}
+      <span class="evo-badge__count">({{ count_str }} {{ noun }})</span>
+    </span>
+  {%- endif -%}
+</div>
+
+<script src="{{ 'reviews.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Product rating badge",
+  "target": "section",
+  "enabled_on": { "templates": ["product"] },
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Shows this product's average rating and review count. Place it directly under the product title."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_verified_icon",
+      "label": "Show the review badge icon",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "alignment",
+      "label": "Alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Centre" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "left"
+    }
+  ]
+}
+{% endschema %}

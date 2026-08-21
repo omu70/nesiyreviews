@@ -1,0 +1,57 @@
+{% comment %}
+  ============================================================
+  App block — Store reviews
+  File: /extensions/reviews-widget/blocks/store-reviews.liquid
+
+  Store-wide reviews: the ones a merchant collects about the shop
+  itself rather than about one product. Drop it on the homepage, an
+  About page, or anywhere else a section block fits.
+
+  Product pages are handled by the Product reviews block, or
+  automatically by the app embed.
+  ============================================================
+{% endcomment %}
+
+<link rel="stylesheet" href="{{ 'reviews.css' | asset_url }}" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="{{ 'reviews.css' | asset_url }}"></noscript>
+
+<div
+  class="evo-rw"
+  data-evo-reviews-block
+  data-evo-mode="store"
+  data-evo-limit="{{ block.settings.count }}"
+  style="--evo-rw-max: {{ block.settings.max_width }}px;"
+  {{ block.shopify_attributes }}
+>
+  <div class="evo-rw__reserve" aria-hidden="true"></div>
+</div>
+
+<script src="{{ 'reviews.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Store reviews",
+  "target": "section",
+  "settings": [
+    {
+      "type": "range",
+      "id": "count",
+      "label": "Reviews shown before “Load more”",
+      "min": 3,
+      "max": 24,
+      "step": 3,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "max_width",
+      "label": "Maximum width",
+      "min": 600,
+      "max": 1600,
+      "step": 100,
+      "default": 1200,
+      "unit": "px"
+    }
+  ]
+}
+{% endschema %}

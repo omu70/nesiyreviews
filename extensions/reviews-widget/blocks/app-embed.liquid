@@ -1,0 +1,110 @@
+{% comment %}
+  ============================================================
+  App embed — Reviews
+  File: /extensions/reviews-widget/blocks/app-embed.liquid
+
+  The merchant enables this once in Theme editor → App embeds.
+  Everything else is configured inside the app, so there is nothing
+  to paste and no theme code to edit (App Store req 5.1.1).
+
+  What this block is responsible for:
+
+    · handing the widget the shop's settings, fetched from the app
+      proxy rather than duplicated here — so changing a colour in the
+      admin updates every storefront without a theme save
+    · putting the star rating on product cards across collection,
+      search and related-product rows, which no app *block* can reach
+    · automatically placing the product-page badge and review section
+      for merchants who have not placed the blocks themselves
+
+  Everything it loads is non-blocking. The stylesheet arrives via the
+  print-media trick, the script is deferred, and the settings request
+  runs in parallel with the script download rather than in front of it.
+  ============================================================
+{% endcomment %}
+
+{%- liquid
+  assign proxy_base = '/apps/evo-reviews'
+  assign on_product = false
+  if template.name == 'product' and product
+    assign on_product = true
+  endif
+-%}
+
+<script>
+  window.__EVO_REVIEWS__ = {
+    proxyBase:     {{ proxy_base | json }},
+    productId:     {% if on_product %}{{ product.id | json }}{% else %}null{% endif %},
+    productHandle: {% if on_product %}{{ product.handle | json }}{% else %}null{% endif %},
+    productTitle:  {% if on_product %}{{ product.title | json }}{% else %}null{% endif %},
+    productUrl:    {% if on_product %}{{ shop.url | append: product.url | json }}{% else %}null{% endif %},
+    productImage:  {% if on_product and product.featured_image %}{{ product.featured_image | image_url: width: 800 | prepend: 'https:' | json }}{% else %}null{% endif %},
+    productSku:    {% if on_product and product.selected_or_first_available_variant %}{{ product.selected_or_first_available_variant.sku | json }}{% else %}null{% endif %},
+    template:      {{ template.name | json }},
+    badgeTarget:   {{ block.settings.badge_target | json }},
+    gridTarget:    {{ block.settings.grid_target | json }},
+    settings:      {}
+  };
+
+  {% comment %}
+    Start the settings request now and hand the widget the promise, so
+    the script download and the configuration fetch overlap instead of
+    queueing. reviews.js waits on this before its first paint.
+  {% endcomment %}
+  window.__EVO_REVIEWS__.settingsReady = (function () {
+    try {
+      return fetch({{ proxy_base | append: '/settings' | json }}, {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin'
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { return (d && d.settings) || null; })
+        .catch(function () { return null; });
+    } catch (e) {
+      return null;
+    }
+  })();
+</script>
+
+{% comment %}
+  Reserve vertical space before the widget paints. Without this the
+  injected star badge shifts the title down and costs CLS, which counts
+  against the Lighthouse budget Shopify enforces at review. The
+  reservation is released as soon as real content lands, and a product
+  with no reviews collapses it to nothing.
+{% endcomment %}
+<style>
+  .evo-badge:empty { display: block; min-height: 26px; }
+  .evo-badge--empty:empty { min-height: 0; }
+  [data-evo-review-widget]:empty { display: block; min-height: 360px; }
+</style>
+
+<link rel="stylesheet" href="{{ 'reviews.css' | asset_url }}" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="{{ 'reviews.css' | asset_url }}"></noscript>
+
+<script src="{{ 'reviews.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Reviews",
+  "target": "head",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "Colours, layout, moderation, the number of reviews shown and where reviews appear are all configured inside the Reviews app. The two fields below are only needed if your theme places the widget somewhere unexpected."
+    },
+    {
+      "type": "text",
+      "id": "badge_target",
+      "label": "Star rating placement (CSS selector)",
+      "info": "Leave blank to place it automatically under the product title."
+    },
+    {
+      "type": "text",
+      "id": "grid_target",
+      "label": "Review section placement (CSS selector)",
+      "info": "Leave blank to place it automatically below the product description."
+    }
+  ]
+}
+{% endschema %}

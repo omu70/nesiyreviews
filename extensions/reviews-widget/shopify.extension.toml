@@ -1,0 +1,13 @@
+api_version = "2026-07"
+
+[[extensions]]
+name   = "Reviews Widget"
+handle = "reviews-widget"
+type   = "theme"
+
+  [extensions.capabilities]
+  # The widget calls the app proxy on the merchant's own domain, which
+  # is same-origin, so no external network access is needed.
+  network_access = false
+  block_progress = false
+  api_access     = false

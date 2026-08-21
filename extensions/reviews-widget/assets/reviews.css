@@ -1,0 +1,1301 @@
+/* =============================================================
+   Reviews — storefront styles
+   File: /extensions/reviews-widget/assets/reviews.css
+
+   Loaded non-blocking from app-embed.liquid and the app blocks.
+   Merchant-configured colours arrive as CSS custom properties set on
+   :root by reviews.js, so this file stays static and CDN-cacheable.
+
+   Everything is scoped under .evo-* so nothing here can reach into a
+   merchant's theme, and font-family inherits rather than imposing a
+   typeface the storefront did not choose.
+   ============================================================= */
+
+:root {
+  --evo-star: #ffc107;
+  --evo-accent: #111111;
+  --evo-ink: #111827;
+  --evo-muted: #6b7280;
+  --evo-faint: #9ca3af;
+  --evo-line: #e5e7eb;
+  --evo-surface: #ffffff;
+  --evo-surface-2: #f9fafb;
+  --evo-radius: 12px;
+  --evo-card-badge-justify: inherit;
+}
+
+.evo-rw__sr {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* =============================================================
+   Product-card badge
+   ⭐ 4.7  🔵  (1.3K Reviews)
+
+   Sits under the product title on collection, search and related
+   rows. Inherits the card's own font so it reads as part of the
+   theme rather than as an embedded widget: no border, no background,
+   no box.
+   ============================================================= */
+.evo-card-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 5px 0 6px;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  color: var(--evo-ink);
+  justify-content: var(--evo-card-badge-justify);
+  /* A single nowrap line would make the badge's minimum width the
+     card's minimum width, and a narrow product grid would stop fitting
+     the screen. Wrapping plus min-width:0 keeps the badge on one line
+     wherever there is room and lets the count drop to a second line on
+     a cramped card, instead of pushing the theme sideways. */
+  flex-wrap: wrap;
+  white-space: normal;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.evo-card-badge__star,
+.evo-card-badge__verified {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.evo-card-badge__avg {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.evo-card-badge__count {
+  font-weight: 400;
+  color: var(--evo-muted);
+  font-size: 0.875em;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .evo-card-badge {
+    font-size: 0.875rem;
+    gap: 5px;
+  }
+  .evo-card-badge__star svg,
+  .evo-card-badge__verified svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* =============================================================
+   Product-page badge (under the title)
+   ============================================================= */
+.evo-badge {
+  display: block;
+  width: 100%;
+  flex-basis: 100%;
+  flex-shrink: 0;
+  clear: both;
+  margin: 6px 0 12px;
+  font-family: inherit;
+  color: var(--evo-ink);
+  cursor: pointer;
+}
+
+.evo-badge--empty {
+  margin: 0;
+  min-height: 0;
+}
+
+.evo-badge:focus-visible {
+  outline: 2px solid var(--evo-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.evo-badge__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.evo-badge__star,
+.evo-badge__verified {
+  display: inline-flex;
+  align-items: center;
+}
+
+.evo-badge__avg {
+  font-weight: 700;
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.evo-badge__count {
+  font-size: 0.9375rem;
+  color: var(--evo-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--evo-line);
+}
+
+/* =============================================================
+   Review section
+   ============================================================= */
+.evo-rw {
+  display: block;
+  /* Whatever container a theme drops this into, it stays inside it.
+     Themes with `box-sizing: content-box` are still out there, and a
+     padded child that inherits it is how a widget ends up scrolling a
+     merchant's page sideways. */
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  font-family: inherit;
+  color: var(--evo-ink);
+}
+
+.evo-rw *,
+.evo-rw *::before,
+.evo-rw *::after {
+  box-sizing: border-box;
+}
+
+.evo-rw__inner {
+  /* The app block passes a merchant-chosen width through this custom
+     property; the automatic placement just gets the default. */
+  max-width: var(--evo-rw-max, 1200px);
+  margin: 0 auto;
+  padding: 40px 16px;
+}
+
+/* Space held for the section before its first paint, so nothing below
+   it jumps. Removed as soon as real content replaces it. */
+.evo-rw__reserve {
+  min-height: 360px;
+}
+
+.evo-rw__heading {
+  margin: 0 0 20px;
+  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.evo-rw__header {
+  margin-bottom: 20px;
+}
+
+.evo-rw__summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 320px);
+  gap: 28px;
+  align-items: center;
+}
+
+.evo-rw__summary:empty {
+  display: none;
+}
+
+.evo-rw__score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.evo-rw__score-value {
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.evo-rw__score-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.evo-rw__score-count {
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  color: var(--evo-muted);
+}
+
+/* ---- rating distribution ---- */
+.evo-rw__dist {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.evo-rw__dist-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.evo-rw__dist-row:hover {
+  background: var(--evo-surface-2);
+}
+
+.evo-rw__dist-row:focus-visible {
+  outline: 2px solid var(--evo-accent);
+  outline-offset: 1px;
+}
+
+.evo-rw__dist-label {
+  font-size: 0.8125rem;
+  color: var(--evo-muted);
+}
+
+.evo-rw__dist-track {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--evo-line);
+  overflow: hidden;
+}
+
+.evo-rw__dist-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--evo-star);
+  transition: width 0.4s ease;
+}
+
+.evo-rw__dist-count {
+  font-size: 0.8125rem;
+  color: var(--evo-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- toolbar ---- */
+.evo-rw__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 0;
+  margin-bottom: 4px;
+  border-top: 1px solid var(--evo-line);
+  border-bottom: 1px solid var(--evo-line);
+}
+
+.evo-rw__toolbar[hidden] {
+  display: none;
+}
+
+.evo-rw__filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  /* A flex item defaults to min-width:auto, which lets a nowrap row of
+     pills push its container wider than the screen. */
+  min-width: 0;
+}
+
+.evo-rw__toolbar-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.evo-rw__pill {
+  border: 1px solid var(--evo-line);
+  background: var(--evo-surface);
+  color: var(--evo-ink);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  cursor: pointer;
+  min-height: 34px;
+}
+
+.evo-rw__pill:hover {
+  border-color: var(--evo-ink);
+}
+
+.evo-rw__pill[aria-pressed="true"] {
+  background: var(--evo-ink);
+  border-color: var(--evo-ink);
+  color: #fff;
+}
+
+.evo-rw__pill:focus-visible,
+.evo-rw__btn:focus-visible {
+  outline: 2px solid var(--evo-accent);
+  outline-offset: 2px;
+}
+
+.evo-rw__sort select {
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 7px 10px;
+  border: 1px solid var(--evo-line);
+  border-radius: 8px;
+  background: var(--evo-surface);
+  color: var(--evo-ink);
+  min-height: 34px;
+}
+
+.evo-rw__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 9px 18px;
+  border: 1.5px solid var(--evo-ink);
+  border-radius: 8px;
+  background: var(--evo-surface);
+  color: var(--evo-ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.evo-rw__btn:hover {
+  background: var(--evo-ink);
+  color: #fff;
+}
+
+.evo-rw__btn--primary {
+  background: var(--evo-accent);
+  border-color: var(--evo-accent);
+  color: #fff;
+}
+
+.evo-rw__btn--primary:hover {
+  opacity: 0.88;
+  background: var(--evo-accent);
+  color: #fff;
+}
+
+.evo-rw__btn[disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ---- list ---- */
+.evo-rw__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1024px) {
+  .evo-rw__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .evo-rw__list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .evo-rw__inner {
+    padding: 28px 14px;
+  }
+  .evo-rw__summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .evo-rw__toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  /* A column flex container does not reliably clamp a nowrap child to
+     its own width, and an unclamped filter row scrolls the merchant's
+     whole page sideways. This makes it explicit. */
+  .evo-rw__toolbar > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .evo-rw__toolbar-right {
+    justify-content: space-between;
+  }
+  .evo-rw__filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .evo-rw__filters::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.evo-rw__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--evo-surface);
+  border: 1px solid var(--evo-line);
+  border-radius: var(--evo-radius);
+}
+
+.evo-rw__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.evo-rw__card-stars {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.evo-rw__card-date {
+  font-size: 0.75rem;
+  color: var(--evo-faint);
+}
+
+.evo-rw__card-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.evo-rw__card-body {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #374151;
+  overflow-wrap: anywhere;
+}
+
+.evo-rw__card-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--evo-surface-2);
+}
+
+.evo-rw__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--evo-line);
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.evo-rw__author {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.evo-rw__author-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.evo-rw__author-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.6875rem;
+  color: var(--evo-muted);
+}
+
+.evo-rw__verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #15803d;
+  font-weight: 600;
+}
+
+.evo-rw__reply {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--evo-surface-2);
+}
+
+.evo-rw__reply-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--evo-muted);
+  margin-bottom: 3px;
+}
+
+.evo-rw__reply p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+/* ---- review photos ---- */
+.evo-rw__thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evo-rw__thumb {
+  position: relative;
+  display: block;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 1px solid var(--evo-line);
+  border-radius: 8px;
+  background: var(--evo-surface-2);
+  overflow: hidden;
+  cursor: zoom-in;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.evo-rw__thumb:hover {
+  border-color: var(--evo-ink);
+  transform: translateY(-1px);
+}
+
+.evo-rw__thumb:focus-visible {
+  outline: 2px solid var(--evo-accent);
+  outline-offset: 2px;
+}
+
+.evo-rw__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A photo that failed to load becomes a quiet placeholder rather than
+   a broken-image icon, and stops being clickable. */
+.evo-rw__thumb.is-broken {
+  cursor: default;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, transparent 47%, var(--evo-line) 47%, var(--evo-line) 53%, transparent 53%),
+    var(--evo-surface-2);
+}
+
+.evo-rw__thumb.is-broken img {
+  visibility: hidden;
+}
+
+.evo-rw__thumb-more {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 24, 39, 0.62);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .evo-rw__thumb {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+/* ---- load more / pagination ---- */
+.evo-rw__more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.evo-rw__more:empty {
+  margin: 0;
+}
+
+.evo-rw__showing {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--evo-muted);
+}
+
+.evo-rw__btn--more {
+  min-width: 220px;
+}
+
+.evo-rw__pager {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.evo-rw__pager button {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--evo-line);
+  border-radius: 8px;
+  background: var(--evo-surface);
+  color: var(--evo-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.evo-rw__pager button[aria-current="page"] {
+  background: var(--evo-ink);
+  border-color: var(--evo-ink);
+  color: #fff;
+}
+
+.evo-rw__pager button[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---- empty / error ---- */
+.evo-rw__empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--evo-muted);
+  border: 1px dashed var(--evo-line);
+  border-radius: var(--evo-radius);
+}
+
+.evo-rw__empty p {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+/* ---- skeletons ---- */
+.evo-rw__card--skeleton {
+  gap: 12px;
+  border-color: var(--evo-surface-2);
+}
+
+.evo-sk {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e9ebef 37%, #f3f4f6 63%);
+  background-size: 400% 100%;
+  animation: evo-shimmer 1.4s ease infinite;
+}
+
+.evo-sk--stars {
+  width: 90px;
+  height: 14px;
+}
+
+.evo-sk--line {
+  height: 11px;
+}
+
+.evo-sk--short {
+  width: 65%;
+}
+
+.evo-sk--author {
+  width: 55%;
+  height: 30px;
+  margin-top: auto;
+  border-radius: 8px;
+}
+
+@keyframes evo-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evo-sk {
+    animation: none;
+  }
+  .evo-rw__dist-fill,
+  .evo-rw__thumb,
+  .evo-rw__btn {
+    transition: none;
+  }
+}
+
+/* =============================================================
+   Lightbox
+   ============================================================= */
+html.evo-lb-open,
+html.evo-lb-open body {
+  overflow: hidden;
+}
+
+.evo-lb {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+.evo-lb[hidden] {
+  display: none;
+}
+
+.evo-lb__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.93);
+}
+
+.evo-lb__stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 94vw;
+  padding: 0 16px;
+}
+
+.evo-lb__frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  min-height: 120px;
+}
+
+.evo-lb__img {
+  display: block;
+  max-width: min(94vw, 1200px);
+  /* Height is capped rather than set, so the photo keeps its own
+     aspect ratio at any viewport size. */
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.evo-lb__spinner {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: evo-spin 0.8s linear infinite;
+}
+
+.evo-lb__spinner[hidden] {
+  display: none;
+}
+
+@keyframes evo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evo-lb__spinner {
+    animation-duration: 2s;
+  }
+}
+
+.evo-lb__failed {
+  margin: 0;
+  padding: 40px 24px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.875rem;
+}
+
+.evo-lb__caption {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.evo-lb__caption:empty {
+  display: none;
+}
+
+.evo-lb__counter {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.evo-lb__counter:empty {
+  display: none;
+}
+
+.evo-lb__btn {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+  /* 44px is the smallest comfortable touch target. */
+  width: 48px;
+  height: 48px;
+  transition: background 0.15s ease;
+}
+
+.evo-lb__btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.evo-lb__btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.evo-lb__btn[hidden] {
+  display: none;
+}
+
+.evo-lb__btn--close {
+  top: 16px;
+  right: 16px;
+}
+
+.evo-lb__btn--prev,
+.evo-lb__btn--next {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.evo-lb__btn--prev {
+  left: 12px;
+}
+
+.evo-lb__btn--next {
+  right: 12px;
+}
+
+@media (max-width: 640px) {
+  /* On a phone the arrows would sit on top of the photo, so they move
+     to the bottom corners where a thumb already is — and swiping works
+     anyway. */
+  .evo-lb__btn--prev,
+  .evo-lb__btn--next {
+    top: auto;
+    bottom: 16px;
+    transform: none;
+  }
+  .evo-lb__img {
+    max-height: 70vh;
+  }
+  .evo-lb__counter {
+    bottom: 30px;
+  }
+}
+
+/* =============================================================
+   Review form
+   ============================================================= */
+.evo-form {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  font-family: inherit;
+  color: var(--evo-ink);
+}
+
+.evo-form__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.6);
+}
+
+.evo-form__card {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--evo-surface);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  -webkit-overflow-scrolling: touch;
+}
+
+.evo-form__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--evo-muted);
+  cursor: pointer;
+}
+
+.evo-form__close:hover {
+  background: var(--evo-surface-2);
+  color: var(--evo-ink);
+}
+
+.evo-form__title {
+  margin: 0 0 18px;
+  padding-right: 44px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.evo-form__rating {
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+}
+
+.evo-form__rating legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.evo-form__stars {
+  /* The inputs are emitted 5 → 1 and reversed here, so that
+     `input:checked ~ label` reaches the stars to its LEFT. That is the
+     only way to fill "up to N" in CSS without JavaScript. */
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: 2px;
+}
+
+.evo-form__star {
+  display: inline-flex;
+  padding: 3px;
+  color: var(--evo-line);
+  cursor: pointer;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.evo-form__stars input:checked + .evo-form__star,
+.evo-form__stars input:checked ~ .evo-form__star {
+  color: var(--evo-star);
+}
+
+/* While the pointer is over the row, preview the hovered value
+   instead of the chosen one. */
+.evo-form__stars:hover input:checked + .evo-form__star,
+.evo-form__stars:hover input:checked ~ .evo-form__star {
+  color: var(--evo-line);
+}
+
+.evo-form__stars:hover .evo-form__star:hover,
+.evo-form__stars:hover .evo-form__star:hover ~ .evo-form__star {
+  color: var(--evo-star);
+}
+
+.evo-form__star:hover {
+  transform: scale(1.06);
+}
+
+.evo-form__stars input:focus-visible + .evo-form__star {
+  outline: 2px solid var(--evo-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evo-form__star {
+    transition: none;
+  }
+  .evo-form__star:hover {
+    transform: none;
+  }
+}
+
+.evo-form__field {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.evo-form__field > span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.evo-form__field em {
+  color: #dc2626;
+  font-style: normal;
+}
+
+.evo-form__field input,
+.evo-form__field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: var(--evo-surface);
+  color: var(--evo-ink);
+  /* 16px keeps iOS Safari from zooming the page on focus. */
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.evo-form__field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.evo-form__field input:focus,
+.evo-form__field textarea:focus {
+  outline: 2px solid var(--evo-accent);
+  outline-offset: -1px;
+  border-color: var(--evo-accent);
+}
+
+.evo-form__field .is-invalid {
+  border-color: #dc2626;
+}
+
+.evo-form__hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.6875rem;
+  color: var(--evo-muted);
+}
+
+.evo-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .evo-form__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .evo-form__card {
+    padding: 20px 16px;
+    max-height: 96vh;
+  }
+}
+
+.evo-form__photos > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.evo-form__file {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 9px 16px;
+  border: 1.5px dashed #d1d5db;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.evo-form__file:hover {
+  border-color: var(--evo-ink);
+}
+
+.evo-form__file:focus-within {
+  outline: 2px solid var(--evo-accent);
+  outline-offset: 2px;
+}
+
+.evo-form__previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evo-form__previews li {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--evo-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.evo-form__previews img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.evo-form__previews button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(17, 24, 39, 0.75);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.evo-form__error {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.8125rem;
+}
+
+.evo-form__error[hidden] {
+  display: none;
+}
+
+.evo-form__submit {
+  width: 100%;
+  min-height: 46px;
+}
+
+.evo-form__legal {
+  margin: 10px 0 0;
+  font-size: 0.6875rem;
+  color: var(--evo-muted);
+  text-align: center;
+}
+
+.evo-form__done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 8px 8px;
+  text-align: center;
+}
+
+.evo-form__done[hidden] {
+  display: none;
+}
+
+.evo-form__done-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.evo-form__done-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.evo-form__done h3 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.evo-form__done p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--evo-muted);
+}

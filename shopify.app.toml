@@ -1,0 +1,91 @@
+####################################################################
+# Shopify app configuration
+# Docs: https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration
+#
+# BEFORE FIRST DEPLOY:
+#   1. Replace client_id with the Client ID from your Partner Dashboard
+#      (Apps → your app → Overview → Client credentials), or just run
+#      `npm run config:link` and the CLI writes it for you.
+#   2. Replace every REPLACE_WITH_YOUR_DOMAIN with your real host.
+#      It must NOT contain the string "shopify" — that fails an
+#      automated pre-submission check.
+#   3. Set dev_store_url to your development store.
+####################################################################
+
+client_id       = "REPLACE_WITH_YOUR_CLIENT_ID"
+name            = "Evo Labs Product Reviews"
+handle          = "evo-product-reviews"
+application_url = "https://REPLACE_WITH_YOUR_DOMAIN"
+embedded        = true
+
+[access_scopes]
+# Comma-separated string, not an array.
+# read_products  — resolve product titles/handles in the admin UI
+# write_products — write the reviews.rating / reviews.rating_count metafields
+#                  so themes and Shop can read aggregate ratings
+scopes = "read_products,write_products"
+
+# Must be false (or omitted) to get Shopify managed installation +
+# OAuth token exchange. Do not set this to true.
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://REPLACE_WITH_YOUR_DOMAIN/auth/callback",
+  "https://REPLACE_WITH_YOUR_DOMAIN/auth/shopify/callback",
+  "https://REPLACE_WITH_YOUR_DOMAIN/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri    = "/webhooks/app/uninstalled"
+
+[[webhooks.subscriptions]]
+topics = ["app/scopes_update"]
+uri    = "/webhooks/app/scopes-update"
+
+# Keep product handles in sync so review→product matching survives
+# renames. Reviews are stored against the numeric product id as well,
+# and this repoints their handle when it changes.
+[[webhooks.subscriptions]]
+topics         = ["products/update"]
+uri            = "/webhooks/products/update"
+include_fields = ["id", "handle", "title"]
+
+# A deleted product's reviews are retired rather than destroyed, so a
+# product deleted by accident does not take its reviews with it.
+[[webhooks.subscriptions]]
+topics = ["products/delete"]
+uri    = "/webhooks/products/delete"
+
+# ------------------------------------------------------------------
+# MANDATORY compliance webhooks. These go in `compliance_topics`,
+# NOT in `topics` — putting them in `topics` fails validation.
+# Missing these is an automatic App Store rejection.
+# ------------------------------------------------------------------
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri               = "/webhooks/compliance"
+
+# ------------------------------------------------------------------
+# App Proxy — the storefront widget calls the merchant's OWN domain
+# (/apps/evo-reviews/...), Shopify signs the request and forwards it
+# here. No CORS, no API key in the theme, no cross-origin request.
+# `prefix` must be one of: a | apps | community | tools
+# `subpath` max 30 chars.
+# ------------------------------------------------------------------
+[app_proxy]
+url     = "https://REPLACE_WITH_YOUR_DOMAIN/apps/proxy"
+subpath = "evo-reviews"
+prefix  = "apps"
+
+[pos]
+embedded = false
+
+[build]
+include_config_on_deploy         = true
+automatically_update_urls_on_dev = true
+dev_store_url                    = "REPLACE_WITH_YOUR_DEV_STORE.myshopify.com"

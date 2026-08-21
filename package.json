@@ -1,0 +1,53 @@
+{
+  "name": "evo-product-reviews",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19 <22 || >=22.12"
+  },
+  "scripts": {
+    "build": "remix vite:build",
+    "dev": "shopify app dev",
+    "start": "remix-serve ./build/server/index.js",
+    "docker-start": "npm run start",
+    "config:link": "shopify app config link",
+    "config:use": "shopify app config use",
+    "deploy": "shopify app deploy",
+    "generate": "shopify app generate",
+    "lint": "eslint .",
+    "shopify": "shopify",
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "node tests/widget/run.js",
+    "test:db": "bash tests/db/apply.sh",
+    "db:bundle": "node scripts/bundle-sql.mjs"
+  },
+  "dependencies": {
+    "@remix-run/dev": "2.16.7",
+    "@remix-run/node": "2.16.7",
+    "@remix-run/react": "2.16.7",
+    "@remix-run/serve": "2.16.7",
+    "@shopify/app-bridge-react": "^4.2.12",
+    "@shopify/polaris": "^12.27.0",
+    "@shopify/shopify-api": "^13.1.0",
+    "@shopify/shopify-app-remix": "^4.2.1",
+    "@shopify/shopify-app-session-storage": "^5.0.1",
+    "@supabase/supabase-js": "^2.45.0",
+    "isbot": "^5.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@shopify/cli": "^4.5.2",
+    "@vercel/remix": "2.16.7",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^15.15.0",
+    "playwright": "^1.62.1",
+    "vite": "^6.3.5"
+  },
+  "overrides": {
+    "vite": "^6.3.5"
+  },
+  "author": "Evo Labs"
+}

@@ -1,0 +1,80 @@
+node_modules
+/build
+/.cache
+/public/build
+.env
+.env.local
+.env.*.local
+.DS_Store
+.vercel
+.shopify
+/extensions/**/dist
+*.log
+/tests/artifacts
+
+# =============================================================
+# Not part of the app.
+#
+# This folder doubles as a working directory for unrelated
+# client work — ad creatives, briefs, PDFs. None of it belongs
+# in a public repository, so it is listed explicitly rather
+# than left merely untracked, where one 'git add .' would
+# publish the lot.
+# =============================================================
+/HL_offer_1x1.jpg
+/HL_offer_1x1.png
+/HL_offer_creative_1080x1080.png
+/HL_offer_creative_1080x1080.svg
+/HL_offer_minimal.png
+/HL_offer_minimal.svg
+/HL_retarget_cart.svg
+/HistoryLifestyle_Client_Brief.docx
+/HistoryLifestyle_Client_OnePager.docx
+/HistoryLifestyle_OnePage_Brief.docx
+/HistoryLifestyle_Plan_of_Action.md
+/_to_delete/
+/carousel_1_hook.png
+/carousel_2_speed.png
+/carousel_3_mobile.png
+/carousel_4_funnel.png
+/carousel_5_cta.png
+/cro_ad_main.png
+/custom_ad_01.png
+/custom_ad_02.png
+/d2c_carousel_1_hook.png
+/d2c_carousel_2_creative.png
+/d2c_carousel_3_carts.png
+/d2c_carousel_4_retention.png
+/d2c_carousel_5_cta.png
+/delulu_nari_v2.pdf
+/dizigroww_2_ads_launch_200rs.md
+/dizigroww_2_custom_ads_brief.md
+/dizigroww_3_ads_launch_brief.md
+/dizigroww_carousel_ad_copy.md
+/dizigroww_carousel_copy_v3.md
+/dizigroww_cro_ad_brief.md
+/dizigroww_d2c_carousel_copy.md
+/dizigroww_ph_landing.html
+/dizigroww_ph_native_brief.md
+/dizigroww_ph_premium_brief.md
+/dizigroww_single_ad_brief.md
+/dizigroww_uae_ad_brief.md
+/evolabs-integrations-handoff-2026-05-09.md
+/final_ad.png
+/history_lifestyle_real_ads.html
+/historylifestyle_assets/
+/node_modules/
+/ph_native_ad.png
+/ph_premium_ad.png
+/single_ad_main.png
+/single_ad_variant.png
+/three_ad_01_meta_initial.png
+/three_ad_02_website.png
+/three_ad_03_combined.png
+/uae_web_dev_ad.png
+/v3_carousel_1.png
+/v3_carousel_2.png
+/v3_carousel_3.png
+/v3_carousel_4.png
+/v3_carousel_5.png
+/.DS_Store
