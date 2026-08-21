@@ -16,9 +16,22 @@ export const meta = ({ data }) => [{ title: data?.appName || "Product Reviews" }
 
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
+
+  // Shopify opens an embedded app at its application_url carrying
+  // ?shop, ?host and ?embedded=1. That request must go to /app, where
+  // authenticate.admin() performs the token exchange.
+  //
+  // Sending it to /auth/login instead makes the SDK answer with a
+  // redirect to admin.shopify.com — and that redirect happens inside
+  // Shopify's own iframe, which admin.shopify.com refuses to be framed
+  // by. The merchant sees an empty panel reading "admin.shopify.com
+  // refused to connect", with nothing in any log to explain it.
   if (url.searchParams.get("shop")) {
-    throw redirect(`/auth/login?${url.searchParams.toString()}`);
+    throw redirect(`/app?${url.searchParams.toString()}`);
   }
+
+  // No shop context: a person typing the bare app URL. Show the
+  // install form.
   return { showForm: true, appName: config.appName };
 };
 

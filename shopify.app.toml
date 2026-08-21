@@ -81,7 +81,6 @@ prefix  = "apps"
 embedded = false
 
 [build]
-include_config_on_deploy = true
 
 # Deliberately false. With this true, running `shopify app dev` would
 # overwrite application_url with a temporary tunnel address and push
