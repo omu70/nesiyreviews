@@ -141,6 +141,55 @@ function shapeReview(row) {
   return shaped;
 }
 
+/**
+ * The "Reviews with images" strip.
+ *
+ * Amazon puts a horizontal band of customer photos directly under the
+ * rating summary, and clicking one opens a gallery of every photo
+ * rather than the one review it came from. That is a different shape
+ * to the paged review list — it is drawn from the whole matching set,
+ * not just the visible page — so it is its own small query.
+ *
+ * `has_images` is a generated column with an index behind it, so this
+ * stays cheap even on a shop with tens of thousands of reviews.
+ */
+const PHOTO_STRIP_REVIEWS = 40;
+const PHOTO_STRIP_MAX = 24;
+
+async function photoStrip(shop, applyScope) {
+  let q = db
+    .from("reviews")
+    .select("id, author_name, image_urls, image_meta")
+    .eq("shop_domain", shop)
+    .eq("status", "approved")
+    .is("product_deleted_at", null)
+    .eq("has_images", true);
+
+  q = applyScope(q);
+
+  const { data, error } = await q
+    .order("created_at", { ascending: false })
+    .limit(PHOTO_STRIP_REVIEWS);
+
+  if (error || !data) return [];
+
+  const out = [];
+  for (const row of data) {
+    for (const img of publicImages(row)) {
+      out.push({
+        url: img.url,
+        thumb: img.thumb,
+        w: img.w,
+        h: img.h,
+        review_id: row.id,
+        author_name: row.author_name || null,
+      });
+      if (out.length >= PHOTO_STRIP_MAX) return out;
+    }
+  }
+  return out;
+}
+
 function emptyDistribution() {
   return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 }
@@ -301,24 +350,48 @@ export const loader = async ({ request, params }) => {
       ? url.searchParams.get("sort")
       : "newest";
 
-    let q = db
-      .from("reviews")
-      .select(PUBLIC_COLS, { count: "exact" })
-      .eq("shop_domain", shop)
-      .eq("status", "approved")
-      .is("product_deleted_at", null);
+    // What a store-wide block covers.
+    //
+    // "all" is the default and means every approved review in the shop,
+    // whichever product it belongs to — the testimonial wall merchants
+    // expect from a block called "Store reviews".
+    //
+    // "unattached" is the original behaviour: only reviews deliberately
+    // filed against no product at all. That is a real thing to want, but
+    // as a default it renders an empty block on any shop that has never
+    // created one, which is exactly how this looked in the wild.
+    const storeScope = url.searchParams.get("scope") === "unattached" ? "unattached" : "all";
 
-    if (storeWide) {
-      // Store-wide reviews are the ones deliberately not attached to a
-      // product.
-      q = q.is("product_id", null).is("product_handle", null);
-    } else if (settings.include_store_reviews_on_product) {
-      q = q.or(
-        `product_handle.eq.${handle},product_id.eq.${handle},and(product_id.is.null,product_handle.is.null)`
-      );
-    } else {
-      q = q.or(`product_handle.eq.${handle},product_id.eq.${handle}`);
-    }
+    // One definition of "which reviews are in scope", applied to the
+    // paged list, the summary and the photo strip alike. Three copies of
+    // this filter is how they drift apart and start disagreeing.
+    const applyScope = (query) => {
+      if (storeWide) {
+        return storeScope === "unattached"
+          ? query.is("product_id", null).is("product_handle", null)
+          : query;
+      }
+      if (settings.include_store_reviews_on_product) {
+        return query.or(
+          `product_handle.eq.${handle},product_id.eq.${handle},and(product_id.is.null,product_handle.is.null)`
+        );
+      }
+      return query.or(`product_handle.eq.${handle},product_id.eq.${handle}`);
+    };
+
+    // A store-wide card says which product it is about, so it needs the
+    // handle. A handle is public information — it is in the storefront
+    // URL — unlike anything else withheld from PUBLIC_COLS.
+    const cols = storeWide ? `${PUBLIC_COLS}, product_handle` : PUBLIC_COLS;
+
+    let q = applyScope(
+      db
+        .from("reviews")
+        .select(cols, { count: "exact" })
+        .eq("shop_domain", shop)
+        .eq("status", "approved")
+        .is("product_deleted_at", null)
+    );
 
     if (ratingFilter >= 1 && ratingFilter <= 5) q = q.eq("rating", ratingFilter);
     if (photosOnly) q = q.eq("has_images", true);
@@ -344,7 +417,15 @@ export const loader = async ({ request, params }) => {
           .eq("product_handle", handle)
           .maybeSingle();
 
-    const [rows, agg] = await Promise.all([rowsPromise, aggPromise]);
+    // The widget paints the strip once, from the first response, so
+    // there is no reason to pay for this query on every load-more click
+    // or filter change.
+    const photosPromise =
+      settings.show_review_images && page === 1 && !ratingFilter && !photosOnly
+        ? photoStrip(shop, applyScope)
+        : Promise.resolve([]);
+
+    const [rows, agg, photos] = await Promise.all([rowsPromise, aggPromise, photosPromise]);
 
     if (rows.error) {
       dbError("proxy.reviews_failed", rows.error, { shop });
@@ -361,13 +442,14 @@ export const loader = async ({ request, params }) => {
       // No aggregate row exists for store-wide reviews (they have no
       // handle to key on), so derive the summary from the unfiltered
       // set once, cheaply, using the rating column only.
-      const { data: ratingRows } = await db
-        .from("reviews")
-        .select("rating, has_images")
-        .eq("shop_domain", shop)
-        .eq("status", "approved")
-        .is("product_id", null)
-        .is("product_handle", null);
+      const { data: ratingRows } = await applyScope(
+        db
+          .from("reviews")
+          .select("rating, has_images")
+          .eq("shop_domain", shop)
+          .eq("status", "approved")
+          .is("product_deleted_at", null)
+      );
       const list = ratingRows || [];
       totalRatings = list.length;
       average = list.length
@@ -398,6 +480,7 @@ export const loader = async ({ request, params }) => {
         totalRatings,
         distribution,
         imagesCount,
+        photos,
         settings: publicSettings(settings),
       },
       { headers: { "Cache-Control": CACHE_SHORT } }

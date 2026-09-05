@@ -622,6 +622,199 @@ async function main() {
     configured.server.close();
   }
 
+  // -----------------------------------------------------------
+  section("Reviews with images — the customer photo strip");
+  // -----------------------------------------------------------
+  await withPage(browser, DESKTOP, async (page, consoleErrors) => {
+    await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".evo-rw__card:not(.evo-rw__card--skeleton)");
+    await page.waitForSelector(".evo-rw__strip-item");
+
+    check(
+      "the strip renders one tile per customer photo",
+      (await page.locator(".evo-rw__strip-item").count()) === 12,
+      `${await page.locator(".evo-rw__strip-item").count()} tiles`
+    );
+
+    check(
+      "it is headed the way Amazon heads it",
+      (await page.locator(".evo-rw__photos-title").innerText()).trim() === "Reviews with images"
+    );
+
+    check(
+      "it sits above the reviews, not below them",
+      await page.evaluate(() => {
+        const strip = document.querySelector(".evo-rw__photos");
+        const list = document.querySelector(".evo-rw__list");
+        return Boolean(
+          strip && list && strip.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING
+        );
+      })
+    );
+
+    // Clicking a tile opens the whole band, not the one review's photos.
+    await page.click('.evo-rw__strip-item[data-index="3"]');
+    await page.waitForSelector("[data-evo-lightbox]:not([hidden])");
+    check("a tile opens the lightbox", (await page.locator("[data-evo-lightbox]").count()) === 1);
+    check(
+      "the lightbox opens the whole band, not one review",
+      (await page.locator("[data-evo-lightbox]").innerText()).includes("12"),
+      await page.locator("[data-evo-lightbox]").innerText()
+    );
+    await page.keyboard.press("Escape");
+
+    check(
+      "the arrows scroll the band",
+      await page.evaluate(async () => {
+        const strip = document.querySelector("[data-evo-strip]");
+        const before = strip.scrollLeft;
+        document.querySelector('[data-evo-strip-scroll="1"]').click();
+        await new Promise((r) => setTimeout(r, 500));
+        return strip.scrollLeft > before;
+      })
+    );
+
+    // "See all photos" is the filter, not a separate page.
+    await page.click("[data-evo-see-all-photos]");
+    await page.waitForSelector(".evo-rw__card:not(.evo-rw__card--skeleton)");
+    check(
+      "See all photos filters the list to reviews with photos",
+      (await page.locator(".evo-rw__pill--photos[aria-pressed='true']").count()) === 1
+    );
+    check(
+      "and every remaining review actually has one",
+      await page.evaluate(() =>
+        Array.from(document.querySelectorAll(".evo-rw__card")).every((c) =>
+          c.querySelector(".evo-rw__thumb")
+        )
+      )
+    );
+    check(
+      "the strip survives filtering rather than flickering away",
+      (await page.locator(".evo-rw__strip-item").count()) === 12
+    );
+
+    check("no console errors on the photo strip", consoleErrors.length === 0, consoleErrors.join(" | "));
+    await page.screenshot({ path: path.join(ARTIFACTS, "photo-strip.png"), fullPage: false });
+  });
+
+  // A shop whose reviews have no photos must not get an empty band.
+  {
+    const bare = createServer({ noPhotoStrip: true });
+    const bareBase = await listen(bare);
+    await withPage(browser, DESKTOP, async (page) => {
+      await page.goto(`${bareBase}/`, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector(".evo-rw__card:not(.evo-rw__card--skeleton)");
+      check(
+        "no photos means no strip, not an empty heading",
+        (await page.locator(".evo-rw__photos:not([hidden])").count()) === 0
+      );
+    });
+    bare.server.close();
+  }
+
+  // -----------------------------------------------------------
+  section("Store reviews block");
+  // -----------------------------------------------------------
+  await withPage(browser, DESKTOP, async (page, consoleErrors) => {
+    await page.goto(`${base}/store-reviews`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".evo-rw__card:not(.evo-rw__card--skeleton)");
+
+    check(
+      "the block is not empty on a page with no product",
+      (await page.locator(".evo-rw__card").count()) > 0,
+      `${await page.locator(".evo-rw__card").count()} cards`
+    );
+
+    check(
+      "it asks for every review, not only the unattached ones",
+      bundle.state.lastReviewsQuery.store === "true" &&
+        bundle.state.lastReviewsQuery.scope === "",
+      JSON.stringify(bundle.state.lastReviewsQuery)
+    );
+
+    check(
+      "each card names the product it is about",
+      (await page.locator(".evo-rw__card-product").count()) ===
+        (await page.locator(".evo-rw__card").count())
+    );
+
+    check(
+      "and links to it",
+      (await page.locator(".evo-rw__card-product").first().getAttribute("href")) ===
+        "/products/card-a",
+      await page.locator(".evo-rw__card-product").first().getAttribute("href")
+    );
+
+    check(
+      "the summary and star breakdown still render store-wide",
+      (await page.locator(".evo-rw__score-value").count()) === 1 &&
+        (await page.locator(".evo-rw__dist-row").count()) === 5
+    );
+
+    check(
+      "the photo strip appears on the store block too",
+      (await page.locator(".evo-rw__strip-item").count()) === 12
+    );
+
+    check(
+      "store-wide reviews carry no product rich snippet",
+      (await page.locator("script[data-evo-jsonld]").count()) === 0
+    );
+
+    check("no console errors on the store block", consoleErrors.length === 0, consoleErrors.join(" | "));
+    await page.screenshot({ path: path.join(ARTIFACTS, "store-reviews.png"), fullPage: false });
+  });
+
+  // The narrower scope is still available to a merchant who wants it.
+  {
+    const narrow = createServer({ storeScope: "unattached" });
+    const narrowBase = await listen(narrow);
+    await withPage(browser, DESKTOP, async (page) => {
+      await page.goto(`${narrowBase}/store-reviews`, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector(".evo-rw__card:not(.evo-rw__card--skeleton)");
+      check(
+        "the block setting can still narrow it to store-only reviews",
+        narrow.state.lastReviewsQuery.scope === "unattached",
+        JSON.stringify(narrow.state.lastReviewsQuery)
+      );
+    });
+    narrow.server.close();
+  }
+
+  // -----------------------------------------------------------
+  section("Photo strip on a phone");
+  // -----------------------------------------------------------
+  await withPage(
+    browser,
+    MOBILE,
+    async (page) => {
+      await page.goto(`${base}/store-reviews`, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector(".evo-rw__strip-item");
+
+      check(
+        "the strip does not push the page sideways",
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+        ),
+        await page.evaluate(
+          () => `${document.documentElement.scrollWidth} vs ${document.documentElement.clientWidth}`
+        )
+      );
+
+      check(
+        "the band itself scrolls instead",
+        await page.evaluate(() => {
+          const strip = document.querySelector("[data-evo-strip]");
+          return strip.scrollWidth > strip.clientWidth;
+        })
+      );
+
+      await page.screenshot({ path: path.join(ARTIFACTS, "photo-strip-mobile.png"), fullPage: false });
+    },
+    MOBILE_CONTEXT
+  );
+
   await browser.close();
   bundle.server.close();
 

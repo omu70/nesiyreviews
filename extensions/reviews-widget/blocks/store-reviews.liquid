@@ -3,9 +3,15 @@
   App block — Store reviews
   File: /extensions/reviews-widget/blocks/store-reviews.liquid
 
-  Store-wide reviews: the ones a merchant collects about the shop
-  itself rather than about one product. Drop it on the homepage, an
-  About page, or anywhere else a section block fits.
+  A store-wide wall of reviews. By default it shows every approved
+  review in the shop, whichever product it belongs to, with the
+  product named on each card — drop it on the homepage, an About
+  page, or anywhere else a section block fits.
+
+  The "Only reviews about the store itself" option narrows it to
+  reviews filed against no product at all. That was the original
+  behaviour, and as a default it rendered an empty block on any shop
+  that had never created one.
 
   Product pages are handled by the Product reviews block, or
   automatically by the app embed.
@@ -19,6 +25,7 @@
   class="evo-rw"
   data-evo-reviews-block
   data-evo-mode="store"
+  data-evo-scope="{{ block.settings.scope }}"
   data-evo-limit="{{ block.settings.count }}"
   style="--evo-rw-max: {{ block.settings.max_width }}px;"
   {{ block.shopify_attributes }}
@@ -33,6 +40,17 @@
   "name": "Store reviews",
   "target": "section",
   "settings": [
+    {
+      "type": "select",
+      "id": "scope",
+      "label": "Which reviews to show",
+      "info": "\u201cEvery review\u201d is a wall of all your approved reviews across every product.",
+      "options": [
+        { "value": "all", "label": "Every review in the store" },
+        { "value": "unattached", "label": "Only reviews about the store itself" }
+      ],
+      "default": "all"
+    },
     {
       "type": "range",
       "id": "count",

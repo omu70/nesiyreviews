@@ -34,6 +34,7 @@
 <script>
   window.__EVO_REVIEWS__ = {
     proxyBase:     {{ proxy_base | json }},
+    rootUrl:       {{ routes.root_url | json }},
     productId:     {% if on_product %}{{ product.id | json }}{% else %}null{% endif %},
     productHandle: {% if on_product %}{{ product.handle | json }}{% else %}null{% endif %},
     productTitle:  {% if on_product %}{{ product.title | json }}{% else %}null{% endif %},

@@ -31,6 +31,15 @@
   // request and forwards it to the app.
   var BASE = String(cfg.proxyBase || "/apps/evo-reviews").replace(/\/$/, "");
 
+  // Shopify's routes.root_url — "/" on a single-market shop, "/en-in/"
+  // and friends once markets or a locale prefix are in play. Building
+  // a product link without it drops shoppers out of their locale.
+  var ROOT = String(cfg.rootUrl || "/").replace(/\/?$/, "/");
+
+  function rootUrl() {
+    return ROOT;
+  }
+
   var settings = {};
   var opts = {};
 
@@ -787,10 +796,21 @@
         '<h2 class="evo-rw__heading" data-evo-heading></h2>' +
         '<div class="evo-rw__summary" data-evo-summary></div>' +
       "</header>" +
+      '<div class="evo-rw__photos" data-evo-photos hidden></div>' +
       '<div class="evo-rw__toolbar" data-evo-toolbar hidden></div>' +
       '<div class="evo-rw__list" data-evo-list aria-live="polite" aria-busy="true"></div>' +
       '<div class="evo-rw__more" data-evo-more></div>' +
     "</div>";
+
+  function chevronSVG(dir) {
+    var d = dir === "left" ? "M11.5 3.5L6 9l5.5 5.5" : "M6.5 3.5L12 9l-5.5 5.5";
+    return (
+      '<svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true" focusable="false">' +
+        '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2" ' +
+          'stroke-linecap="round" stroke-linejoin="round"/>' +
+      "</svg>"
+    );
+  }
 
   function skeletonHTML(n) {
     var card =
@@ -903,7 +923,74 @@
     return html + "</ul>";
   }
 
-  function cardHTML(review) {
+  /**
+   * "Reviews with images" — the horizontal band of customer photos
+   * Amazon puts between the rating summary and the reviews.
+   *
+   * Two things make it worth its own component rather than a row of
+   * card thumbnails. It is drawn from the whole matching set, not the
+   * visible page, so it is populated before anyone scrolls. And a click
+   * opens a gallery of every photo in the strip rather than the photos
+   * of the one review it came from, which is what a shopper scanning
+   * for "what does this actually look like" is after.
+   */
+  function photoStripHTML(photos) {
+    if (!opts.showImages || !photos || photos.length < 2) return "";
+
+    var items = "";
+    for (var i = 0; i < photos.length; i++) {
+      var img = photos[i];
+      items +=
+        "<li>" +
+          '<button class="evo-rw__strip-item" type="button" data-evo-strip-photo data-index="' + i + '" ' +
+            'aria-label="Open customer photo ' + (i + 1) + " of " + photos.length +
+            (img.author_name ? ", by " + esc(img.author_name) : "") + '">' +
+            '<img src="' + esc(img.thumb || img.url) + '" alt="" loading="lazy" decoding="async" ' +
+              'width="150" height="150"/>' +
+          "</button>" +
+        "</li>";
+    }
+
+    return (
+      '<div class="evo-rw__photos-head">' +
+        '<h3 class="evo-rw__photos-title">Reviews with images</h3>' +
+        '<button class="evo-rw__photos-all" type="button" data-evo-see-all-photos>' +
+          "See all photos" +
+          '<span aria-hidden="true"> \u203a</span>' +
+        "</button>" +
+      "</div>" +
+      '<div class="evo-rw__strip-wrap">' +
+        '<button class="evo-rw__strip-nav evo-rw__strip-nav--prev" type="button" ' +
+          'data-evo-strip-scroll="-1" aria-label="Scroll photos left">' + chevronSVG("left") + "</button>" +
+        '<ul class="evo-rw__strip" data-evo-strip>' + items + "</ul>" +
+        '<button class="evo-rw__strip-nav evo-rw__strip-nav--next" type="button" ' +
+          'data-evo-strip-scroll="1" aria-label="Scroll photos right">' + chevronSVG("right") + "</button>" +
+      "</div>"
+    );
+  }
+
+  /** "wireless-neckband-z2" -> "Wireless Neckband Z2" */
+  function titleFromHandle(handle) {
+    return String(handle || "")
+      .split("-")
+      .filter(Boolean)
+      .map(function (w) {
+        return w.charAt(0).toUpperCase() + w.slice(1);
+      })
+      .join(" ");
+  }
+
+  function cardHTML(review, mode) {
+    // On a store-wide wall every card is about a different product, so
+    // without this the reviews read as unattributed praise.
+    var product =
+      mode === "store" && review.product_handle
+        ? '<a class="evo-rw__card-product" href="' +
+            esc(rootUrl() + "products/" + review.product_handle) + '">' +
+            esc(titleFromHandle(review.product_handle)) +
+          "</a>"
+        : "";
+
     var verifiedMark = review.is_verified
       ? '<span class="evo-rw__verified">' + checkSVG() + "Verified purchase</span>"
       : "";
@@ -926,6 +1013,7 @@
           '<time class="evo-rw__card-date" datetime="' + esc(review.created_at) + '" title="' +
             esc(fmtDate(review.created_at)) + '">' + esc(timeAgo(review.created_at)) + "</time>" +
         "</div>" +
+        product +
         title +
         '<p class="evo-rw__card-body">' + esc(review.content) + "</p>" +
         thumbsHTML(review) +
@@ -969,7 +1057,7 @@
     );
   }
 
-  function mountSection(host, mode, limitOverride) {
+  function mountSection(host, mode, limitOverride, scope) {
     if (host.getAttribute("data-evo-mounted") === "1") return;
     host.setAttribute("data-evo-mounted", "1");
     host.classList.add("evo-rw");
@@ -980,14 +1068,16 @@
     var summaryEl = host.querySelector("[data-evo-summary]");
     var headingEl = host.querySelector("[data-evo-heading]");
     var toolbarEl = host.querySelector("[data-evo-toolbar]");
+    var photosEl = host.querySelector("[data-evo-photos]");
     var moreEl = host.querySelector("[data-evo-more]");
+    var stripPainted = false;
 
     headingEl.textContent = opts.heading;
 
     var perPage = Math.max(1, Math.min(100, limitOverride || opts.perPage));
 
     var view = { page: 1, rating: 0, photosOnly: false, sort: "newest" };
-    var cache = { reviews: [], byId: {}, data: null };
+    var cache = { reviews: [], byId: {}, data: null, photos: [] };
 
     listEl.innerHTML = skeletonHTML(Math.min(perPage, 4));
 
@@ -995,6 +1085,7 @@
       return getJSON("/reviews", {
         handle: mode === "store" ? "" : productHandle || productId,
         store: mode === "store" ? "true" : "",
+        scope: mode === "store" && scope === "unattached" ? "unattached" : "",
         page: page,
         limit: perPage,
         rating: view.rating || "",
@@ -1055,12 +1146,29 @@
       });
 
       summaryEl.innerHTML = summaryHTML(data);
+
+      // The strip describes the whole review set, not the current
+      // filter, so it is painted once from the first unfiltered
+      // response and then left alone. Re-rendering it on every filter
+      // change would make it flicker and jump the page.
+      if (!append && !stripPainted) {
+        cache.photos = data.photos || [];
+        var stripHTML = photoStripHTML(cache.photos);
+        photosEl.innerHTML = stripHTML;
+        photosEl.hidden = !stripHTML;
+        stripPainted = true;
+      }
+
       toolbarEl.hidden = !data.totalRatings;
       if (data.totalRatings) toolbarEl.innerHTML = toolbarHTML(view, data);
 
       listEl.setAttribute("aria-busy", "false");
       listEl.innerHTML = cache.reviews.length
-        ? cache.reviews.map(cardHTML).join("")
+        ? cache.reviews
+            .map(function (r) {
+              return cardHTML(r, mode);
+            })
+            .join("")
         : emptyHTML(view);
 
       renderMore(data);
@@ -1102,13 +1210,20 @@
     // A photo that 404s (storage pruned, a bad CDN day) must not leave
     // a broken-image icon in the middle of a review. `error` does not
     // bubble, so this listens in the capture phase.
-    listEl.addEventListener(
+    host.addEventListener(
       "error",
       function (e) {
         var img = e.target;
         if (!img || img.tagName !== "IMG") return;
         var thumb = img.closest(".evo-rw__thumb");
-        if (thumb) thumb.classList.add("is-broken");
+        if (thumb) {
+          thumb.classList.add("is-broken");
+          return;
+        }
+        // A dead tile in the photo strip is removed outright: unlike a
+        // review card, there is nothing else in it worth keeping.
+        var tile = img.closest(".evo-rw__strip-item");
+        if (tile && tile.parentNode) tile.parentNode.remove();
       },
       true
     );
@@ -1128,6 +1243,41 @@
             el
           );
         }
+        return;
+      }
+
+      el = e.target.closest("[data-evo-strip-photo]");
+      if (el) {
+        // Amazon opens the whole band as one gallery, not the photos of
+        // the single review the tile came from.
+        openLightbox(
+          cache.photos,
+          parseInt(el.getAttribute("data-index"), 10) || 0,
+          "Customer photos",
+          el
+        );
+        return;
+      }
+
+      el = e.target.closest("[data-evo-strip-scroll]");
+      if (el) {
+        var strip = host.querySelector("[data-evo-strip]");
+        if (strip) {
+          var dir = parseInt(el.getAttribute("data-evo-strip-scroll"), 10) || 1;
+          // Roughly one screenful, so repeated clicks walk the band
+          // rather than nudging it.
+          strip.scrollBy({
+            left: dir * Math.max(160, strip.clientWidth * 0.8),
+            behavior: "smooth",
+          });
+        }
+        return;
+      }
+
+      el = e.target.closest("[data-evo-see-all-photos]");
+      if (el) {
+        view.photosOnly = true;
+        reload();
         return;
       }
 
@@ -1755,7 +1905,8 @@
       mountSection(
         placed[i],
         placed[i].getAttribute("data-evo-mode") === "store" ? "store" : "product",
-        parseInt(placed[i].getAttribute("data-evo-limit"), 10) || 0
+        parseInt(placed[i].getAttribute("data-evo-limit"), 10) || 0,
+        placed[i].getAttribute("data-evo-scope") || "all"
       );
     }
 

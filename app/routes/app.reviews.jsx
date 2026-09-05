@@ -36,6 +36,7 @@ import { authenticate } from "../shopify.server";
 import { db, ADMIN_COLS, initialsOf, safeHandle, publicImages, SUPABASE_URL } from "../db.server";
 import { log, dbError } from "../utils/log.server";
 import { syncRatingMetafieldsInBackground } from "../utils/metafields.server";
+import { planDuplicateRemoval } from "../../lib/duplicates.js";
 
 const PAGE_SIZE = 20;
 const STATUSES = ["approved", "pending", "hidden", "rejected"];
@@ -124,6 +125,38 @@ async function removeImages(rows) {
   if (error) log.warn("admin.image_delete_failed", { error, count: paths.length });
 }
 
+/** Page through every review in a shop. Supabase caps a single read at 1000. */
+async function allReviews(shop) {
+  const CHUNK = 1000;
+  const MAX = 50000;
+  const rows = [];
+  for (let from = 0; from < MAX; from += CHUNK) {
+    const { data, error } = await db
+      .from("reviews")
+      .select(
+        "id, product_handle, product_id, author_name, rating, content, status, reply, is_featured, image_urls, created_at"
+      )
+      .eq("shop_domain", shop)
+      .order("created_at", { ascending: true })
+      .range(from, from + CHUNK - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    rows.push(...data);
+    if (data.length < CHUNK) break;
+  }
+  return rows;
+}
+
+/**
+ * Read every review in the shop and work out which copies are extra.
+ *
+ * The rule itself lives in /lib/duplicates.js so it can be tested
+ * without a database. Nothing here writes.
+ */
+async function findDuplicates(shop) {
+  return planDuplicateRemoval(await allReviews(shop));
+}
+
 export const action = async ({ request }) => {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
@@ -191,6 +224,59 @@ export const action = async ({ request }) => {
       );
 
       return json({ ok: true, message: `${ids.length} deleted` });
+    }
+
+    if (intent === "scanDuplicates") {
+      const { duplicateIds, preview, scanned } = await findDuplicates(shop);
+      return json({
+        ok: true,
+        scan: {
+          count: duplicateIds.length,
+          groups: preview.length,
+          scanned,
+          preview: preview.slice(0, 25),
+        },
+      });
+    }
+
+    if (intent === "deleteDuplicates") {
+      // Recomputed here rather than trusting a list of ids posted back
+      // from the browser. The scan the merchant saw may be minutes old,
+      // and in between a webhook or another tab could have changed what
+      // is actually duplicated.
+      const { duplicateIds } = await findDuplicates(shop);
+      if (!duplicateIds.length) {
+        return json({ ok: true, message: "No duplicates left to remove" });
+      }
+
+      const { data: doomed } = await db
+        .from("reviews")
+        .select("product_handle, image_urls, image_meta")
+        .eq("shop_domain", shop)
+        .in("id", duplicateIds);
+
+      const { error } = await db
+        .from("reviews")
+        .delete()
+        .eq("shop_domain", shop)
+        .in("id", duplicateIds);
+      if (error) throw error;
+
+      await removeImages(doomed);
+      syncRatingMetafieldsInBackground(
+        admin,
+        shop,
+        (doomed || []).map((r) => r.product_handle)
+      );
+
+      log.info("admin.duplicates_removed", { shop, count: duplicateIds.length });
+
+      const n = duplicateIds.length;
+      return json({
+        ok: true,
+        message: `${n} duplicate review${n === 1 ? "" : "s"} deleted`,
+        cleared: true,
+      });
     }
 
     if (intent === "feature") {
@@ -275,11 +361,17 @@ export default function Reviews() {
   const [addOpen, setAddOpen] = useState(false);
   const [replyFor, setReplyFor] = useState(null);
   const [viewing, setViewing] = useState(null); // { review, index }
+  const [scan, setScan] = useState(null); // duplicate scan result
   const [toast, setToast] = useState("");
 
   const busy = fetcher.state !== "idle";
 
   useEffect(() => {
+    if (fetcher.data?.scan) {
+      setScan(fetcher.data.scan);
+      return;
+    }
+    if (fetcher.data?.cleared) setScan(null);
     if (fetcher.data?.message) {
       setToast(fetcher.data.message);
       setSelected([]);
@@ -388,6 +480,12 @@ export default function Reviews() {
                       autoComplete="off"
                     />
                   </Box>
+                  <Button
+                    loading={busy && fetcher.formData?.get("intent") === "scanDuplicates"}
+                    onClick={() => submit({ intent: "scanDuplicates" })}
+                  >
+                    Delete duplicates
+                  </Button>
                   {filters.product ? (
                     <InlineStack gap="150" blockAlign="center">
                       <Badge tone="info">{`Product: ${filters.product}`}</Badge>
@@ -601,6 +699,80 @@ export default function Reviews() {
       </Layout>
 
       {/* ---- Photo viewer ---- */}
+      {/*
+        One button, but not a one-click purge. Deleting reviews is
+        irreversible and takes the shopper photos with it, so the scan
+        runs first and this says exactly what it found before anything
+        goes. The count is the honest headline; the list underneath is
+        there for the merchant who wants to check the rule did what
+        they expected before trusting it with the rest.
+      */}
+      <Modal
+        open={Boolean(scan)}
+        onClose={() => setScan(null)}
+        title="Delete duplicate reviews"
+        primaryAction={
+          scan && scan.count
+            ? {
+                content: `Delete ${scan.count} duplicate${scan.count === 1 ? "" : "s"}`,
+                destructive: true,
+                loading: busy,
+                onAction: () => submit({ intent: "deleteDuplicates" }),
+              }
+            : { content: "Close", onAction: () => setScan(null) }
+        }
+        secondaryActions={
+          scan && scan.count ? [{ content: "Cancel", onAction: () => setScan(null) }] : []
+        }
+      >
+        <Modal.Section>
+          {scan && scan.count ? (
+            <BlockStack gap="300">
+              <Text as="p">
+                {`${scan.count} duplicate${scan.count === 1 ? "" : "s"} across ${scan.groups} review${
+                  scan.groups === 1 ? "" : "s"
+                }, out of ${scan.scanned} scanned. The original of each is kept — the one with photos, or the earliest if none have any.`}
+              </Text>
+              <Text as="p" tone="subdued" variant="bodySm">
+                A duplicate means the same product, the same reviewer name, the same
+                rating and the same words. Two different people saying the same thing
+                are left alone.
+              </Text>
+              {/* Box has no maxHeight token, so the scroll cap is inline. */}
+              <div style={{ maxHeight: "260px", overflowY: "auto" }}>
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                <BlockStack gap="200">
+                  {scan.preview.map((g, i) => (
+                    <Text key={i} as="p" variant="bodySm">
+                      <b>{`${g.author} · ${g.rating}★ · ${g.product}`}</b>
+                      {` — ${g.copies} copies, removing ${g.removing}`}
+                      <br />
+                      <Text as="span" tone="subdued">{`“${g.excerpt}”`}</Text>
+                    </Text>
+                  ))}
+                  {scan.groups > scan.preview.length ? (
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {`…and ${scan.groups - scan.preview.length} more`}
+                    </Text>
+                  ) : null}
+                </BlockStack>
+                </Box>
+              </div>
+              <Text as="p" tone="critical" variant="bodySm">
+                This cannot be undone, and any photos on the deleted copies are removed
+                from storage too.
+              </Text>
+            </BlockStack>
+          ) : (
+            <Text as="p">
+              {scan
+                ? `No duplicates found across ${scan.scanned} review${scan.scanned === 1 ? "" : "s"}.`
+                : ""}
+            </Text>
+          )}
+        </Modal.Section>
+      </Modal>
+
       <Modal
         open={Boolean(viewing)}
         onClose={() => setViewing(null)}

@@ -171,6 +171,50 @@ const PRODUCT_PAGE = (overrides = {}) => `
 <script src="/assets/reviews.js" defer></script>
 `;
 
+/**
+ * A homepage carrying the Store reviews block, emitted exactly as
+ * store-reviews.liquid does. No product context at all — this is the
+ * page where the block used to render an empty shell.
+ */
+const STORE_PAGE = (overrides = {}) => `
+<h1>Welcome</h1>
+
+<div
+  class="evo-rw"
+  data-evo-reviews-block
+  data-evo-mode="store"
+  data-evo-scope="${overrides.storeScope || "all"}"
+  data-evo-limit="12"
+  style="--evo-rw-max: 1200px;"
+>
+  <div class="evo-rw__reserve" aria-hidden="true"></div>
+</div>
+
+<script>
+  window.__EVO_REVIEWS__ = {
+    proxyBase: "/apps/evo-reviews",
+    rootUrl: "/",
+    productId: null,
+    productHandle: null,
+    productTitle: null,
+    productUrl: null,
+    productImage: null,
+    productSku: null,
+    template: "index",
+    badgeTarget: "",
+    gridTarget: "",
+    settings: {}
+  };
+  ${overrides.script || ""}
+  window.__EVO_REVIEWS__.settingsReady = fetch("/apps/evo-reviews/settings")
+    .then(function (r) { return r.json(); })
+    .then(function (d) { return d.settings; })
+    .catch(function () { return null; });
+</script>
+<link rel="stylesheet" href="/assets/reviews.css">
+<script src="/assets/reviews.js" defer></script>
+`;
+
 function html(body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -198,6 +242,10 @@ export function createServer(state = {}) {
     // ---- page ----
     if (url.pathname === "/" || url.pathname === "/product") {
       return send(200, html(PRODUCT_PAGE(state)), "text/html; charset=utf-8");
+    }
+
+    if (url.pathname === "/store-reviews") {
+      return send(200, html(STORE_PAGE(state)), "text/html; charset=utf-8");
     }
 
     // ---- extension assets, straight off disk ----
@@ -238,7 +286,25 @@ export function createServer(state = {}) {
       const ratingFilter = parseInt(url.searchParams.get("rating") || "", 10);
       const photosOnly = url.searchParams.get("photos") === "1";
 
+      // Remembered so a check can assert what the store block asked
+      // for, not just what it rendered.
+      state.lastReviewsQuery = {
+        store: url.searchParams.get("store") || "",
+        scope: url.searchParams.get("scope") || "",
+        handle: url.searchParams.get("handle") || "",
+      };
+
+      const storeWide = url.searchParams.get("store") === "true";
+
       let all = Array.from({ length: TOTAL_REVIEWS }, (_, i) => makeReview(i + 1));
+      // Store-wide rows carry the product they belong to; product-page
+      // rows do not, exactly as the proxy returns them.
+      if (storeWide) {
+        all = all.map((r, i) => ({
+          ...r,
+          product_handle: i % 2 === 0 ? "card-a" : "card-b",
+        }));
+      }
       if (ratingFilter >= 1 && ratingFilter <= 5) all = all.filter((r) => r.rating === ratingFilter);
       if (photosOnly) all = all.filter((r) => r.images.length > 0);
 
@@ -258,6 +324,18 @@ export function createServer(state = {}) {
         totalRatings: TOTAL_REVIEWS,
         distribution: DISTRIBUTION,
         imagesCount: 438,
+        // The photo strip is drawn from the whole set, not the page —
+        // twelve tiles is what the real endpoint caps a first band at.
+        photos: state.noPhotoStrip
+          ? []
+          : Array.from({ length: 12 }, (_, i) => ({
+              url: `/img/strip-${i}.png`,
+              thumb: `/img/strip-thumb-${i}.png`,
+              w: 1600,
+              h: 1200,
+              review_id: `review-${i + 1}`,
+              author_name: `Customer ${i + 1}`,
+            })),
         settings,
       });
     }
